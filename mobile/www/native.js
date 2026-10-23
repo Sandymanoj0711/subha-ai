@@ -22,6 +22,20 @@
   // Passcode + server URL come from config.js (written at build time from GitHub secrets).
   try { if (window.SUBHA_TOKEN) localStorage.setItem('subha_token', window.SUBHA_TOKEN); } catch (e) {}
 
+  // Phone's own voice (free) - used when the server voice is down.
+  var TTS = null;
+  try { TTS = (C.Plugins && C.Plugins.TextToSpeech) || C.registerPlugin('TextToSpeech'); } catch (e) {}
+  window.__nativeSpeak = function (text, done) {
+    var finished = false;
+    function end() { if (!finished) { finished = true; done(); } }
+    if (!TTS) { window.__toast('Phone voice plugin missing'); end(); return; }
+    var lang = /[\u0B80-\u0BFF]/.test(text) ? 'ta-IN' : 'en-IN';
+    Promise.resolve(TTS.speak({ text: text, lang: lang, rate: 1.0, pitch: 1.0, volume: 1.0 }))
+      .then(end)
+      .catch(function (e) { window.__toast('Phone voice error: ' + String((e && e.message) || e)); end(); });
+  };
+  window.__nativeStop = function () { try { if (TTS) Promise.resolve(TTS.stop()).catch(function () {}); } catch (e) {} };
+
   // No bundler here, so get the native plugin through registerPlugin (works for native-only plugins).
   var Plugin = null;
   try { Plugin = (C.Plugins && C.Plugins.SpeechRecognition) || C.registerPlugin('SpeechRecognition'); } catch (e) {}

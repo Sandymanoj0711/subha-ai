@@ -171,6 +171,7 @@ function cleanForSpeech(s) {
 }
 
 function browserSpeak(text, done) {
+  if (window.__nativeSpeak) { window.__nativeSpeak(text, done); return; }
   let finished = false;
   const end = () => { if (!finished) { finished = true; done(); } };
   if (!('speechSynthesis' in window)) { end(); return; }
@@ -184,10 +185,12 @@ function browserSpeak(text, done) {
 
 // Each reply is fetched as ONE audio clip (only very long replies are split).
 function fetchAudio(text) {
+  if (window.__ttsDownUntil && Date.now() < window.__ttsDownUntil) return Promise.resolve(null);
+  const down = () => { window.__ttsDownUntil = Date.now() + 5 * 60 * 1000; return null; };
   return apiFetch('/api/tts', {method: 'POST', headers: {'Content-Type': 'application/json'},
                                body: JSON.stringify({text})})
-    .then(r => { if (!r.ok && window.__toast) __toast('Voice server error ' + r.status); return r.ok ? r.blob() : null; })
-    .catch(e => { if (window.__toast) __toast('Voice request failed: ' + e.message); return null; });
+    .then(r => r.ok ? r.blob() : down())
+    .catch(() => down());
 }
 
 function enqueueSpeech(raw) {
@@ -235,6 +238,7 @@ function speakAll(text) {
 function stopSpeech() {
   ttsGen++; ttsQueue = []; pending = '';
   if (curAudio) { curAudio.pause(); curAudio = null; }
+  if (window.__nativeStop) window.__nativeStop();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
 
