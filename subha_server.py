@@ -501,6 +501,19 @@ input[type=radio],input[type=checkbox]{accent-color:var(--accent);width:18px;hei
 .row button{border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:10px;padding:10px 14px;cursor:pointer}
 .row button.primary{background:var(--accent);border-color:var(--accent);color:#fff;margin-left:auto}
 .tip{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px}
+#voice{position:fixed;inset:0;z-index:50;display:none;background:radial-gradient(circle at var(--mx,40%) var(--my,46%),rgba(90,210,255,.6),rgba(20,100,230,.28) 24%,transparent 52%),linear-gradient(115deg,#020510 0%,#06193d 50%,#0a46b0 100%)}
+#voice.on{display:block}
+#voice canvas{position:absolute;inset:0}
+.vtop{position:absolute;top:calc(env(safe-area-inset-top,0px) + 16px);left:18px;color:#cfe9ff;font-size:14px;letter-spacing:.04em}
+.vbottom{position:absolute;left:0;right:0;bottom:0;padding:34px 20px calc(env(safe-area-inset-bottom,0px) + 22px);text-align:center;background:linear-gradient(transparent,rgba(2,5,16,.8) 45%)}
+#vstatus{margin:0 0 6px;color:#8fd6ff;font-size:14px}
+#vyou{margin:0;color:#9bb4d3;font-size:15px;min-height:1.2em;overflow-wrap:anywhere}
+#vreply{margin:6px 0 14px;color:#fff;font-size:19px;line-height:1.5;min-height:1.5em;max-height:28vh;overflow:auto;overflow-wrap:anywhere}
+.vbtns{display:flex;justify-content:center;gap:22px}
+.vbtns button{width:60px;height:60px;border-radius:50%;border:1px solid rgba(160,220,255,.45);background:rgba(10,40,90,.6);color:#fff;font-size:24px;cursor:pointer}
+#vTalk{background:rgba(255,80,120,.88);animation:pulse 1.6s infinite}
+.vhint{margin:0 0 12px;color:#7da3cc;font-size:12px}
+@media (prefers-reduced-motion:reduce){#vTalk{animation:none}}
 </style>
 </head>
 <body>
@@ -529,6 +542,18 @@ input[type=radio],input[type=checkbox]{accent-color:var(--accent);width:18px;hei
       <button id="clear" class="smallbtn" type="button">New chat</button>
       <span class="hint">Speak a full sentence, then pause</span>
     </div>
+  </div>
+</div>
+
+<div id="voice" role="dialog" aria-label="Voice chat">
+  <canvas id="face"></canvas><canvas id="wave"></canvas>
+  <div class="vtop" id="vname"></div>
+  <div class="vbottom">
+    <p id="vstatus" aria-live="polite"></p>
+    <p id="vyou"></p>
+    <p id="vreply"></p>
+    <p class="vhint">Tap the screen to interrupt · tap the mic to end</p>
+    <div class="vbtns"><button id="vTalk" type="button" aria-label="End voice chat">🎙</button></div>
   </div>
 </div>
 
@@ -625,7 +650,7 @@ let voiceMode = false, listening = false, rec = null;
 let ttsQueue = [], speaking = false, ttsGen = 0, curAudio = null;
 
 const scrollBottom = () => { messagesEl.scrollTop = messagesEl.scrollHeight; };
-const setStatus = t => { statusEl.textContent = t; };
+const setStatus = t => { statusEl.textContent = t; const v = $('vstatus'); if (v) v.textContent = t; };
 
 function addMessage(role, text, isError = false) {
   const w = $('welcome'); if (w) w.remove();
@@ -641,6 +666,141 @@ function addMessage(role, text, isError = false) {
   scrollBottom();
   return bubble;
 }
+
+/* ---------- voice screen: face + sound wave ---------- */
+const voiceEl = $('voice'), faceC = $('face'), waveC = $('wave');
+const faceX = faceC.getContext('2d'), waveX = waveC.getContext('2d');
+const RM = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const PROFILE = 'M 20 0 C 70 20 110 60 128 110 C 132 125 134 140 140 150 L 168 205 Q 172 220 150 226 L 132 232 C 134 245 140 250 138 258 C 136 264 128 266 120 268 C 128 276 136 280 132 292 C 128 310 126 322 118 336 C 108 356 80 372 20 380';
+const profilePath = new Path2D(PROFILE), fillPath = new Path2D(PROFILE + ' L 20 1400 L -600 1400 L -600 0 Z');
+const MOUTH = {x: 124, y: 268};
+let vw = 0, vh = 0, mouthX = 0, mouthY = 0, raf = 0, bump = 0, lvl = 0;
+let audioCtx = null, spkAn = null, micAn = null, micStream = null;
+// iPhone only allows audio that was started by a tap, so ONE player is unlocked on the first tap and reused.
+const player = new Audio();
+player.preload = 'auto'; player.setAttribute('playsinline', '');
+const SILENT = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAIARKwAABCxAgAEABAAZGF0YQQAAAAAAA==';
+let audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  try { player.src = SILENT; const p = player.play(); if (p && p.catch) p.catch(() => { audioUnlocked = false; }); }
+  catch (e) { audioUnlocked = false; }
+}
+
+function layoutVoice() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  vw = voiceEl.clientWidth; vh = voiceEl.clientHeight;
+  for (const c of [faceC, waveC]) { c.width = vw * dpr; c.height = vh * dpr; c.style.width = vw + 'px'; c.style.height = vh + 'px'; }
+  faceX.setTransform(dpr, 0, 0, dpr, 0, 0); waveX.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const sc = Math.min(vw * 0.55 / 170, vh * 0.95 / 400);
+  mouthX = MOUTH.x * sc; mouthY = vh * 0.46;
+  voiceEl.style.setProperty('--mx', mouthX + 'px'); voiceEl.style.setProperty('--my', mouthY + 'px');
+  faceX.clearRect(0, 0, vw, vh);
+  faceX.save();
+  faceX.translate(0, mouthY - MOUTH.y * sc); faceX.scale(sc, sc);
+  faceX.fillStyle = '#02040b'; faceX.fill(fillPath);
+  faceX.lineJoin = 'round'; faceX.lineCap = 'round';
+  faceX.shadowColor = '#4fd2ff'; faceX.shadowBlur = 34;
+  faceX.strokeStyle = 'rgba(80,200,255,.55)'; faceX.lineWidth = 7 / sc; faceX.stroke(profilePath);
+  faceX.shadowBlur = 10; faceX.strokeStyle = '#bff0ff'; faceX.lineWidth = 2.5 / sc; faceX.stroke(profilePath);
+  faceX.restore();
+}
+
+function ensureAudio() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  if (!audioCtx) {
+    audioCtx = new AC();
+    spkAn = audioCtx.createAnalyser(); spkAn.fftSize = 512;
+    spkAn.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+}
+async function startMicViz() {
+  if (MOBILE || micAn || !audioCtx) return;      // phones: the recognizer needs the mic to itself
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({audio: true});
+    const an = audioCtx.createAnalyser(); an.fftSize = 512;
+    audioCtx.createMediaStreamSource(micStream).connect(an);
+    micAn = an;
+  } catch (e) { micAn = null; }
+}
+function stopMicViz() {
+  if (micStream) micStream.getTracks().forEach(t => t.stop());
+  micStream = null; micAn = null;
+}
+function analyse(an) {
+  an._b = an._b || new Uint8Array(an.fftSize);
+  an.getByteTimeDomainData(an._b);
+  let sum = 0;
+  for (const v of an._b) { const d = (v - 128) / 128; sum += d * d; }
+  return Math.min(1, Math.sqrt(sum / an._b.length) * 4.5);
+}
+
+function drawWave(t) {
+  const state = listening ? 'listening' : busy ? 'thinking' : speaking ? 'speaking' : 'idle';
+  let target = 0.04;
+  if (state === 'listening') target = micAn ? analyse(micAn) : 0.1 + bump;
+  else if (state === 'speaking') target = (spkAn && curAudio && !curAudio.paused && audioCtx && audioCtx.state === 'running')
+      ? analyse(spkAn) : 0.3 + 0.35 * Math.random();
+  else if (state === 'thinking') target = 0.12 + 0.08 * Math.sin(t / 220);
+  bump *= 0.9;
+  lvl += (target - lvl) * 0.35;
+
+  waveX.clearRect(0, 0, vw, vh);
+  const n = Math.max(24, Math.floor((vw - mouthX) / 5)), dx = (vw - mouthX) / n, maxH = vh * 0.34;
+  waveX.save();
+  waveX.shadowColor = '#4fd2ff'; waveX.shadowBlur = 10;
+  waveX.strokeStyle = 'rgba(200,244,255,.92)'; waveX.lineWidth = 1.6;
+  waveX.beginPath();
+  for (let i = 0; i < n; i++) {
+    const p = i / n, env = 0.1 + 0.9 * Math.pow(p, 0.8);
+    const r = RM ? 0.6 : 0.25 + Math.random() * 0.75;
+    const a = 2 + lvl * maxH * env * r * (i % 7 === 0 ? 1.5 : 1);
+    const x = mouthX + i * dx;
+    waveX.moveTo(x, mouthY - a); waveX.lineTo(x, mouthY + a);
+  }
+  waveX.stroke();
+  waveX.lineWidth = 1.2; waveX.strokeStyle = '#ffffff';
+  waveX.beginPath(); waveX.moveTo(mouthX, mouthY);
+  for (let i = 1; i < n; i++) {
+    const env = 0.1 + 0.9 * Math.pow(i / n, 0.8);
+    waveX.lineTo(mouthX + i * dx, mouthY + (RM ? 0 : (Math.random() - 0.5)) * lvl * maxH * 0.28 * env);
+  }
+  waveX.stroke();
+  waveX.restore();
+}
+
+function showVoice() {
+  voiceEl.classList.add('on'); document.body.style.overflow = 'hidden';
+  ensureAudio(); layoutVoice(); startMicViz();
+  $('vname').textContent = NAME[S.voice] + ' · ' + LANG_LABEL[S.lang];
+  $('vyou').textContent = ''; $('vreply').textContent = '';
+  cancelAnimationFrame(raf);
+  const loop = t => { drawWave(t); raf = requestAnimationFrame(loop); };
+  raf = requestAnimationFrame(loop);
+}
+function hideVoice() {
+  voiceEl.classList.remove('on'); document.body.style.overflow = '';
+  cancelAnimationFrame(raf); stopMicViz();
+}
+function endVoice() {
+  voiceMode = false; micBtn.classList.remove('on', 'live');
+  if (rec) try { rec.abort(); } catch (e) {}
+  if (controller) controller.abort();
+  stopSpeech(); speaking = false;
+  hideVoice(); setStatus('Tap the mic and just talk');
+}
+function interruptAndListen() {
+  if (controller) controller.abort();
+  stopSpeech(); speaking = false;
+  if (!busy) startListening();
+}
+$('vTalk').addEventListener('click', endVoice);
+voiceEl.addEventListener('click', e => { if (!e.target.closest('button')) interruptAndListen(); });
+window.addEventListener('resize', () => { if (voiceEl.classList.contains('on')) layoutVoice(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && voiceMode && !dlg.open) endVoice(); });
 
 /* ---------- speech output ---------- */
 let voices = [];
@@ -701,12 +861,16 @@ async function nextSpeech() {
   if (gen !== ttsGen) return;                       // interrupted while loading
   if (blob && blob.size > 0) {
     const url = URL.createObjectURL(blob);
-    const a = new Audio(url);
+    const a = player;
     curAudio = a;
+    if (!MOBILE && audioCtx && spkAn && audioCtx.state === 'running' && !a._routed) {   // wave follows her voice (PC only)
+      try { audioCtx.createMediaElementSource(a).connect(spkAn); a._routed = true; } catch (e) {}
+    }
     let finished = false;
-    const end = () => { if (finished) return; finished = true; URL.revokeObjectURL(url); advance(); };
+    const end = () => { if (finished) return; finished = true; a.onended = a.onerror = null; URL.revokeObjectURL(url); advance(); };
     a.onended = end; a.onerror = end;
-    try { await a.play(); } catch (e) { finished = true; browserSpeak(item.text, advance); }
+    a.src = url;
+    try { await a.play(); } catch (e) { finished = true; a.onended = a.onerror = null; browserSpeak(item.text, advance); }
   } else {
     browserSpeak(item.text, advance);               // fallback voice
   }
@@ -727,7 +891,7 @@ function speakAll(text) {
 
 function stopSpeech() {
   ttsGen++; ttsQueue = [];
-  if (curAudio) { curAudio.pause(); curAudio = null; }
+  if (curAudio) { curAudio.onended = curAudio.onerror = null; curAudio.pause(); curAudio = null; }
   if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
 
@@ -761,7 +925,7 @@ function startListening() {
   // Stop after ~1.4 s of silence once you started speaking (so sentences are not cut short).
   const arm = () => { clearTimeout(timer); timer = setTimeout(() => { try { r.stop(); } catch (e) {} }, 1400); };
   r.onstart = () => { micBtn.classList.add('live'); setStatus('Listening... (' + LANG_LABEL[S.lang] + ')'); };
-  r.onspeechstart = () => { heard = true; setStatus('Hearing you...'); };
+  r.onspeechstart = () => { heard = true; bump = 0.6; setStatus('Hearing you...'); };
   r.onresult = e => {
     let fin = '', interim = '';
     for (let i = 0; i < e.results.length; i++) {
@@ -769,12 +933,14 @@ function startListening() {
       if (x.isFinal) fin += x[0].transcript + ' '; else interim += x[0].transcript;
     }
     latest = (fin + interim).trim();
-    inputEl.value = latest;
+    inputEl.value = latest; bump = 0.6;
+    $('vyou').textContent = latest; $('vreply').textContent = '';
     if (!MOBILE) arm();
   };
   r.onerror = e => {
-    if (e.error !== 'aborted') setStatus(MIC_MSG[e.error] || ('Mic error: ' + e.error));
-    if (MIC_FATAL.includes(e.error)) { fatal = true; voiceMode = false; micBtn.classList.remove('on'); }
+    const msg = MIC_MSG[e.error] || ('Mic error: ' + e.error);
+    if (MIC_FATAL.includes(e.error)) { fatal = true; endVoice(); setStatus(msg); }
+    else if (e.error !== 'aborted') setStatus(msg);
   };
   r.onend = () => {
     clearTimeout(timer);
@@ -796,28 +962,23 @@ function maybeResume() {
 }
 
 micBtn.addEventListener('click', () => {
+  unlockAudio();
   if (!voiceMode) {
     voiceMode = true; micBtn.classList.add('on');
-    stopSpeech(); startListening();
-  } else if (busy || speaking) {          // tap to interrupt and talk
-    if (controller) controller.abort();
-    stopSpeech(); speaking = false;
-    if (!busy) startListening();
-  } else {                                // turn voice chat off
-    voiceMode = false; micBtn.classList.remove('on', 'live');
-    if (rec) try { rec.abort(); } catch (e) {}
-    setStatus('Tap the mic and just talk');
-  }
+    stopSpeech(); showVoice(); startListening();
+  } else endVoice();
 });
 
 /* ---------- chat ---------- */
 async function sendMessage(textArg) {
   const text = (textArg ?? inputEl.value).trim();
   if (!text || busy) return;
+  unlockAudio();
   stopSpeech(); speaking = false;
   if (listening && rec) try { rec.abort(); } catch (e) {}
 
   addMessage('user', text);
+  $('vyou').textContent = text; $('vreply').textContent = '';
   inputEl.value = ''; inputEl.style.height = '42px';
   history.push({role: 'user', content: text});
 
@@ -848,7 +1009,7 @@ async function sendMessage(textArg) {
         if (!line) continue;
         const msg = JSON.parse(line);
         if (msg.error) throw new Error(msg.error);
-        if (msg.t) { answer += msg.t; bubble.textContent = answer; scrollBottom(); }
+        if (msg.t) { answer += msg.t; bubble.textContent = answer; $('vreply').textContent = answer; scrollBottom(); }
       }
     }
     if (!answer.trim()) throw new Error('Empty reply. Try again.');
