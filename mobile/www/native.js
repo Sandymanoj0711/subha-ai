@@ -56,7 +56,7 @@
     }
     function cleanup() {
       clearTimeout(self._silence); clearTimeout(self._noSpeech);
-      self._handles.forEach(function (h) { try { h.remove(); } catch (e) {} });
+      self._handles.forEach(function (h) { try { if (h && h.remove) h.remove(); } catch (e) {} });
       self._handles = [];
     }
     function fail(code) {
@@ -81,17 +81,17 @@
     Plugin.requestPermissions().then(function (p) {
       if (self._ended) return;
       if (p.speechRecognition !== 'granted') { window.__toast('Mic permission: ' + p.speechRecognition); fail('not-allowed'); return; }
-      return Plugin.addListener('partialResults', function (d) {
+      return Promise.resolve(Plugin.addListener('partialResults', function (d) {
         var t = (d && d.matches && d.matches[0]) || '';
         if (!t) return;
         clearTimeout(self._noSpeech);
         if (!self._heard) { self._heard = true; if (self.onspeechstart) self.onspeechstart(); }
         self._last = t; emit(t, false); armSilence();
-      }).then(function (h) {
+      })).then(function (h) {
         self._handles.push(h);
-        return Plugin.addListener('listeningState', function (d) {
+        return Promise.resolve(Plugin.addListener('listeningState', function (d) {
           if (d && d.status === 'stopped') setTimeout(finish, 200);
-        });
+        }));
       }).then(function (h) {
         self._handles.push(h);
         self._noSpeech = setTimeout(function () {
