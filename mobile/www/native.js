@@ -5,6 +5,20 @@
   var C = window.Capacitor;
   if (!C || !C.isNativePlatform || !C.isNativePlatform()) return;
 
+  // Small on-screen message so problems can be seen on the phone (debug help).
+  window.__toast = function (msg) {
+    try {
+      var d = document.getElementById('__toast');
+      if (!d) {
+        d = document.createElement('div'); d.id = '__toast';
+        d.style.cssText = 'position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:#222;color:#fff;font:13px sans-serif;padding:8px 10px;border-radius:8px;opacity:.95';
+        (document.body || document.documentElement).appendChild(d);
+      }
+      d.textContent = String(msg); d.style.display = 'block';
+      clearTimeout(d._t); d._t = setTimeout(function () { d.style.display = 'none'; }, 9000);
+    } catch (e) {}
+  };
+
   // Passcode + server URL come from config.js (written at build time from GitHub secrets).
   try { if (window.SUBHA_TOKEN) localStorage.setItem('subha_token', window.SUBHA_TOKEN); } catch (e) {}
 
@@ -66,7 +80,7 @@
 
     Plugin.requestPermissions().then(function (p) {
       if (self._ended) return;
-      if (p.speechRecognition !== 'granted') { fail('not-allowed'); return; }
+      if (p.speechRecognition !== 'granted') { window.__toast('Mic permission: ' + p.speechRecognition); fail('not-allowed'); return; }
       return Plugin.addListener('partialResults', function (d) {
         var t = (d && d.matches && d.matches[0]) || '';
         if (!t) return;
@@ -81,12 +95,13 @@
       }).then(function (h) {
         self._handles.push(h);
         self._noSpeech = setTimeout(function () {
-          if (!self._heard) { self._stopNative(); fail('no-speech'); }
+          if (!self._heard) { window.__toast('Mic is on but heard nothing'); self._stopNative(); fail('no-speech'); }
         }, NO_SPEECH_MS);
         if (self.onstart) self.onstart();
         return Plugin.start({ language: self.lang, maxResults: 1, partialResults: true, popup: false });
       });
     }).catch(function (e) {
+      window.__toast('Mic error: ' + String((e && e.message) || e));
       var m = String((e && e.message) || e).toLowerCase();
       fail(m.indexOf('permission') >= 0 ? 'not-allowed' : m.indexOf('language') >= 0 ? 'language-not-supported' : 'audio-capture');
     });

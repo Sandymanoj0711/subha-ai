@@ -235,7 +235,7 @@ def make_kural_context(user_text, prev_texts=()):
         topic = detect_topic(q)
         if topic and top_kurals(topic):
             return format_kural(BY_NUMBER[top_kurals(topic)[0]]), True
-        return ("Manoj asked about Thirukkural but gave no number or clear topic. "
+        return ("The user asked about Thirukkural but gave no number or clear topic. "
                 "Do not invent a verse. Ask which Kural number or topic he means."), True
 
     if is_smalltalk(q):                             # greetings: short plain reply, no idea
@@ -265,7 +265,7 @@ def make_kural_context(user_text, prev_texts=()):
 
 def format_kural(item):
     return (
-        f"Manoj asked for a Kural, so you MAY share it now.\n"
+        f"The user asked for a Kural, so you MAY share it now.\n"
         f"Kural {item.get('Number')}:\n{item.get('Line1', '')}\n{item.get('Line2', '')}\n"
         f"Meaning (Mu. Varadarajan): {item.get('mv', '')}\n"
         f"Meaning (Kalaignar): {item.get('mk', '')}\n"
@@ -304,20 +304,21 @@ def synthesize(text):
 # --------------------------------------------------------------------------
 # Persona
 # --------------------------------------------------------------------------
-PERSONA = """You are Subha (சுபா), Manoj's close friend chatting on a voice call. Talk like a real friend, not an assistant.
+PERSONA = """You are Subha (சுபா), the user's close friend chatting on a voice call. You do not know the user's name yet. Talk like a real friend, not an assistant.
 - Answer what he actually said, in the same language style as his message (Tamil script -> Tamil, English -> English, Tanglish -> Tanglish).
 - Very short: 1-2 sentences, max 25 words. Never lecture. Casual, playful, warm. A greeting gets a greeting back.
 - Do not assume he is sad or stressed. Be sympathetic only if he says something is wrong.
 - Use everyday spoken Tamil (enna, seri, aama, illa, romba, da, pa). Avoid bookish or formal Tamil.
 - No lists, markdown or emojis. Your words are read aloud.
 - You are an AI friend. Do not claim human experiences.
+- You do not know the user's name. Never assume one. In your first reply, greet and casually ask their name once. After they tell you, use it naturally now and then.
 - Never mention Thirukkural, Valluvar or verses unless he explicitly asks for a Kural.
 - If a [private note] is attached, build your reply on its idea in your own casual words, as your own opinion. Never quote or reveal the note.
 - If there is no note (greetings, small talk), just chat naturally and keep it very short, under 12 words."""
 
 FEWSHOT = [
     {"role": "user", "content": "hi"},
-    {"role": "assistant", "content": "Hey da! Enna panra?"},
+    {"role": "assistant", "content": "Hey! Naan Subha. Un per enna?"},
     {"role": "user", "content": "saptiya"},
     {"role": "assistant", "content": "Aama da, saptten. Nee saptiya?"},
     {"role": "user", "content": "loosu"},
@@ -331,7 +332,7 @@ FEWSHOT = [
 ]
 
 LANGUAGE_INSTRUCTIONS = {
-    "auto": "Reply in the same language style Manoj just used: Tamil script if he wrote Tamil script, "
+    "auto": "Reply in the same language style the user just used: Tamil script if they wrote Tamil script, "
             "English if English, Tanglish (Tamil in English letters, mixed with English) if Tanglish.",
     "English": "Reply in natural, friendly spoken English only.",
     "Tamil": "Reply in natural spoken Tamil using Tamil script only (colloquial, not bookish). "
@@ -423,7 +424,7 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
   <main id="messages" aria-live="polite">
     <div class="welcome" id="welcome">
       <div class="big">🌷</div>
-      <h2>Hi Manoj, I'm Subha!</h2>
+      <h2>Hi, I'm Subha!</h2>
       <p>Tap the mic and talk to me like a friend - Tamil, English or Tanglish. You can type too.</p>
     </div>
   </main>
@@ -483,7 +484,7 @@ function addMessage(role, text, isError = false) {
   const row = document.createElement('div');
   row.className = 'message ' + (role === 'user' ? 'user' : 'assistant');
   const av = document.createElement('div');
-  av.className = 'avatar'; av.textContent = role === 'user' ? 'M' : 'சு';
+  av.className = 'avatar'; av.textContent = role === 'user' ? 'நீ' : 'சு';
   const bubble = document.createElement('div');
   bubble.className = 'bubble' + (isError ? ' error' : '');
   bubble.textContent = text;

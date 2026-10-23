@@ -78,7 +78,7 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
   <main id="messages" aria-live="polite">
     <div class="welcome" id="welcome">
       <div class="big">🌷</div>
-      <h2>Hi Manoj, I'm Subha!</h2>
+      <h2>Hi, I'm Subha!</h2>
       <p>Tap the mic and talk to me like a friend - Tamil, English or Tanglish. You can type too.</p>
     </div>
   </main>
@@ -140,7 +140,7 @@ function addMessage(role, text, isError = false) {
   const row = document.createElement('div');
   row.className = 'message ' + (role === 'user' ? 'user' : 'assistant');
   const av = document.createElement('div');
-  av.className = 'avatar'; av.textContent = role === 'user' ? 'M' : 'சு';
+  av.className = 'avatar'; av.textContent = role === 'user' ? 'நீ' : 'சு';
   const bubble = document.createElement('div');
   bubble.className = 'bubble' + (isError ? ' error' : '');
   bubble.textContent = text;
@@ -186,7 +186,8 @@ function browserSpeak(text, done) {
 function fetchAudio(text) {
   return apiFetch('/api/tts', {method: 'POST', headers: {'Content-Type': 'application/json'},
                                body: JSON.stringify({text})})
-    .then(r => r.ok ? r.blob() : null).catch(() => null);
+    .then(r => { if (!r.ok && window.__toast) __toast('Voice server error ' + r.status); return r.ok ? r.blob() : null; })
+    .catch(e => { if (window.__toast) __toast('Voice request failed: ' + e.message); return null; });
 }
 
 function enqueueSpeech(raw) {
@@ -212,7 +213,7 @@ async function nextSpeech() {
     let finished = false;
     const end = () => { if (finished) return; finished = true; URL.revokeObjectURL(url); advance(); };
     a.onended = end; a.onerror = end;
-    try { await a.play(); } catch (e) { finished = true; browserSpeak(item.text, advance); }
+    try { await a.play(); } catch (e) { finished = true; if (window.__toast) __toast('Audio blocked: ' + e.name); browserSpeak(item.text, advance); }
   } else {
     browserSpeak(item.text, advance);               // fallback voice
   }
