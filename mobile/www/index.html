@@ -50,9 +50,25 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 .speak{color:var(--muted);font-size:12px;display:flex;gap:6px;align-items:center}
 .note{color:var(--muted);font-size:11px}
 @media (max-width:540px){.note{display:none}select{max-width:108px;font-size:12px}}
+
+/* old iPhones (iOS 13 - 14.4) have no flex "gap": use margins instead */
+.no-flex-gap header>*{margin:0 12px 6px 0}
+.no-flex-gap .selects>*+*{margin-left:8px}
+.no-flex-gap label.sel>*+*{margin-top:3px}
+.no-flex-gap #messages>*+*{margin-top:16px}
+.no-flex-gap .message>*+*{margin-left:10px}
+.no-flex-gap .message.user>*+*{margin-left:0;margin-right:10px}
+.no-flex-gap .composer>*+*{margin-left:10px}
+.no-flex-gap .tools>*+*{margin-left:10px}
+.no-flex-gap .speak>*+*{margin-left:6px}
 </style>
 </head>
 <body>
+<script>
+(function(){try{var f=document.createElement('div');f.style.cssText='display:flex;flex-direction:column;row-gap:1px;position:absolute;visibility:hidden';
+f.appendChild(document.createElement('div'));f.appendChild(document.createElement('div'));document.body.appendChild(f);
+var ok=f.scrollHeight===1;document.body.removeChild(f);if(!ok)document.documentElement.classList.add('no-flex-gap');}catch(e){}})();
+</script>
 <div class="app">
   <header>
     <div class="logo">சு</div>
@@ -311,7 +327,7 @@ micBtn.addEventListener('click', () => {
 
 /* ---------- chat ---------- */
 async function sendMessage(textArg) {
-  const text = (textArg ?? inputEl.value).trim();
+  const text = (textArg != null ? textArg : inputEl.value).trim();
   if (!text || busy) return;
   stopSpeech(); speaking = false;
   if (listening && rec) try { rec.abort(); } catch (e) {}
