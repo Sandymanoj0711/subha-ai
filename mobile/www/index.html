@@ -214,6 +214,36 @@ async function startSpeakerWave(audio) {
   }
 }
 
+// Native Android/iOS TextToSpeech does not expose its PCM samples to this WebView.
+// Keep a lively speaking animation for that path; server-generated audio above still
+// uses the real Web Audio analyser.
+window.__setSpeakerWaveNative = function (active) {
+  stopSpeakerWave();
+  if (!active || !speakerWave || !speakerWaveCtx || !speakerWaveCanvas) return;
+  speakerWave.classList.add('active');
+  const bars = 32, width = speakerWaveCanvas.width, height = speakerWaveCanvas.height;
+  const gap = 3, barWidth = (width - gap * (bars - 1)) / bars;
+  const started = performance.now();
+  const drawNative = (now) => {
+    if (!speakerWave.classList.contains('active') || speakerAnalyser) return;
+    const elapsed = (now - started) / 1000;
+    speakerWaveCtx.clearRect(0, 0, width, height);
+    for (let i = 0; i < bars; i++) {
+      const pulse = Math.abs(Math.sin(elapsed * (3.2 + (i % 5) * 0.18) + i * 0.58));
+      const ripple = Math.abs(Math.sin(elapsed * 5.1 - i * 0.31));
+      const barHeight = Math.max(4, 5 + (pulse * 0.68 + ripple * 0.32) * (height - 12));
+      const x = i * (barWidth + gap), y = (height - barHeight) / 2;
+      speakerWaveCtx.fillStyle = 'hsl(' + (246 + i * 0.65) + ' 92% 72%)';
+      speakerWaveCtx.beginPath();
+      if (speakerWaveCtx.roundRect) speakerWaveCtx.roundRect(x, y, barWidth, barHeight, barWidth / 2);
+      else speakerWaveCtx.rect(x, y, barWidth, barHeight);
+      speakerWaveCtx.fill();
+    }
+    speakerWaveFrame = requestAnimationFrame(drawNative);
+  };
+  speakerWaveFrame = requestAnimationFrame(drawNative);
+};
+
 const scrollBottom = () => { messagesEl.scrollTop = messagesEl.scrollHeight; };
 const setStatus = t => { statusEl.textContent = t; };
 
