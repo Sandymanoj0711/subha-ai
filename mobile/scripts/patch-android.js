@@ -11,3 +11,31 @@ if (!x.includes('android.permission.RECORD_AUDIO')) {
 }
 fs.writeFileSync(f, x);
 console.log('AndroidManifest patched');
+
+// Let the WebView play Subha's voice without a fresh tap (autoplay), by replacing MainActivity.
+function findMain(dir) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = dir + '/' + e.name;
+    if (e.isDirectory()) { const r = findMain(p); if (r) return r; }
+    else if (e.name === 'MainActivity.java') return p;
+  }
+  return null;
+}
+const main = findMain('android/app/src/main/java');
+if (main) {
+  const pkg = (fs.readFileSync(main, 'utf8').match(/^package\s+([\w.]+);/m) || [])[1];
+  fs.writeFileSync(main, `package ${pkg};
+
+import android.os.Bundle;
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
+    }
+}
+`);
+  console.log('MainActivity patched: ' + main);
+} else { console.log('MainActivity.java not found'); }

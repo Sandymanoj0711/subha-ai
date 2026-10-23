@@ -8,8 +8,15 @@
   // Passcode + server URL come from config.js (written at build time from GitHub secrets).
   try { if (window.SUBHA_TOKEN) localStorage.setItem('subha_token', window.SUBHA_TOKEN); } catch (e) {}
 
-  var Plugin = C.Plugins && C.Plugins.SpeechRecognition;
-  if (!Plugin) { console.warn('SpeechRecognition plugin not found'); return; }
+  // No bundler here, so get the native plugin through registerPlugin (works for native-only plugins).
+  var Plugin = null;
+  try { Plugin = (C.Plugins && C.Plugins.SpeechRecognition) || C.registerPlugin('SpeechRecognition'); } catch (e) {}
+  if (!Plugin) {
+    document.addEventListener('DOMContentLoaded', function () {
+      var s = document.getElementById('status'); if (s) s.textContent = 'Mic plugin not found in this app build';
+    });
+    return;
+  }
 
   var SILENCE_MS = 1800;   // stop after this much quiet once the user has spoken
   var NO_SPEECH_MS = 8000; // give up if nothing is heard
