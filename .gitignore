@@ -1,0 +1,9 @@
+.env
+*.key
+*.jks
+*.keystore
+__pycache__/
+node_modules/
+start.tx
+*.local.ps1
+secrets*

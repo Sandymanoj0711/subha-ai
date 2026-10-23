@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: subha-ai
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python subha_server.py
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: SUBHA_API_MODEL
+        value: gemini-3.5-flash-lite
+      - key: SUBHA_API_KEYS
+        sync: false
+      - key: SUBHA_ACCESS_TOKEN
+        sync: false
+        
