@@ -286,8 +286,18 @@ except ImportError:
     HAVE_EDGE_TTS = False
 
 TAMIL_RE = re.compile(r"[\u0B80-\u0BFF]")
-VOICE_TAMIL = "ta-IN-PallaviNeural"     # female Tamil
-VOICE_ENGLISH = "en-IN-NeerjaNeural"    # female Indian English (also used for Tanglish)
+# Female neural voices. Change them in Render > Environment (no code change needed):
+#   SUBHA_VOICE_TAMIL    e.g. ta-IN-PallaviNeural (default), ta-LK-SaranyaNeural
+#   SUBHA_VOICE_ENGLISH  e.g. en-IN-NeerjaExpressiveNeural (default), en-IN-NeerjaNeural,
+#                        en-US-AvaMultilingualNeural, en-US-JennyNeural, en-GB-SoniaNeural
+#   SUBHA_VOICE_RATE     speaking speed, e.g. +0% or -5% (calmer) or +10% (faster)
+#   SUBHA_VOICE_PITCH    e.g. +0Hz, +2Hz (slightly higher), -2Hz
+SAFE_TAMIL = "ta-IN-PallaviNeural"
+SAFE_ENGLISH = "en-IN-NeerjaNeural"      # known-good fallback if a chosen voice fails
+VOICE_TAMIL = os.environ.get("SUBHA_VOICE_TAMIL", SAFE_TAMIL).strip() or SAFE_TAMIL
+VOICE_ENGLISH = os.environ.get("SUBHA_VOICE_ENGLISH", "en-IN-NeerjaExpressiveNeural").strip() or SAFE_ENGLISH
+VOICE_RATE = os.environ.get("SUBHA_VOICE_RATE", "+5%").strip() or "+5%"
+VOICE_PITCH = os.environ.get("SUBHA_VOICE_PITCH", "+0Hz").strip() or "+0Hz"
 
 
 AZURE_KEY = os.environ.get("AZURE_SPEECH_KEY", "").strip()
@@ -302,7 +312,7 @@ def synthesize_azure(text, voice):
     """Official Azure Speech REST API (same neural voices as edge-tts, but supported + stable)."""
     lang = voice[:5]
     ssml = (f"<speak version='1.0' xml:lang='{lang}'><voice name='{voice}'>"
-            f"<prosody rate='+5%'>{_xml(text)}</prosody></voice></speak>")
+            f"<prosody rate='{VOICE_RATE}' pitch='{VOICE_PITCH}'>{_xml(text)}</prosody></voice></speak>")
     req = Request(
         f"https://{AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1",
         data=ssml.encode("utf-8"),
@@ -318,12 +328,22 @@ def synthesize_azure(text, voice):
 def synthesize_edge(text, voice):
     async def run():
         audio = bytearray()
-        async for chunk in edge_tts.Communicate(text, voice, rate="+5%").stream():
+        async for chunk in edge_tts.Communicate(text, voice, rate=VOICE_RATE, pitch=VOICE_PITCH).stream():
             if chunk["type"] == "audio":
                 audio += chunk["data"]
+        if not audio:
+            raise RuntimeError(f"no audio received for voice {voice}")
         return bytes(audio)
 
-    return asyncio.run(run())
+    try:
+        return asyncio.run(run())
+    except Exception as exc:
+        safe = SAFE_TAMIL if voice.startswith("ta-") else SAFE_ENGLISH
+        if voice == safe:
+            raise
+        print(f"[Subha] voice {voice} failed ({exc}); using {safe}")
+        voice = safe
+        return asyncio.run(run())
 
 
 def synthesize(text):
