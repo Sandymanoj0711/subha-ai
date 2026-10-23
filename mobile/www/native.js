@@ -27,14 +27,25 @@
   try { TTS = (C.Plugins && C.Plugins.TextToSpeech) || C.registerPlugin('TextToSpeech'); } catch (e) {}
   window.__nativeSpeak = function (text, done) {
     var finished = false;
-    function end() { if (!finished) { finished = true; done(); } }
+    var wave = window.__setSpeakerWaveNative;
+    if (wave) wave(true);
+    function end() {
+      if (!finished) {
+        finished = true;
+        if (wave) wave(false);
+        done();
+      }
+    }
     if (!TTS) { window.__toast('Phone voice plugin missing'); end(); return; }
     var lang = /[\u0B80-\u0BFF]/.test(text) ? 'ta-IN' : 'en-IN';
     Promise.resolve(TTS.speak({ text: text, lang: lang, rate: 1.0, pitch: 1.0, volume: 1.0 }))
       .then(end)
       .catch(function (e) { window.__toast('Phone voice error: ' + String((e && e.message) || e)); end(); });
   };
-  window.__nativeStop = function () { try { if (TTS) Promise.resolve(TTS.stop()).catch(function () {}); } catch (e) {} };
+  window.__nativeStop = function () {
+    if (window.__setSpeakerWaveNative) window.__setSpeakerWaveNative(false);
+    try { if (TTS) Promise.resolve(TTS.stop()).catch(function () {}); } catch (e) {}
+  };
 
   // No bundler here, so get the native plugin through registerPlugin (works for native-only plugins).
   var Plugin = null;
