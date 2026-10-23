@@ -51,7 +51,7 @@ CLOUD_MODEL = os.environ.get("SUBHA_API_MODEL", "gemini-3.5-flash-lite")
 USE_CLOUD = bool(CLOUD_KEYS and CLOUD_MODEL)
 
 # "always": every reply is built on a Kural idea.  "relevant": only when the topic matches.
-WISDOM_MODE = os.environ.get("SUBHA_WISDOM", "always")
+WISDOM_MODE = os.environ.get("SUBHA_WISDOM", "relevant")
 
 
 class NoBackend(Exception):
@@ -210,7 +210,9 @@ EXPLICIT_WORDS = ("thirukkural", "thirukural", "kural", "valluvar", "திர�
 SMALLTALK_WORDS = set("""hi hii hello helo hey hai vanakkam saptiya sapteena sapitiya epdi epdiye irukka irukkiya
 how are you enna panra pandra panre ok okay seri hmm yes no bye thanks thank nandri good morning night evening
 wassup sup da di pa nalla fine ya yaa aama illa
-வணக்கம் ஹலோ ஹாய் ஹை சாப்டியா சாப்பிட்டியா எப்படி இருக்க இருக்கீங்களா என்ன பண்ற பண்றே சரி நன்றி ஆமா இல்ல""".split())
+வணக்கம் ஹலோ ஹாய் ஹை சாப்டியா சாப்பிட்டியா எப்படி இருக்க இருக்கீங்களா என்ன பண்ற பண்றே சரி நன்றி ஆமா இல்ல
+ஐ லவ் யூ மிஸ் தேங்க்ஸ் தேங்க் குட் மார்னிங் நைட் ஈவினிங் பை ஓகே ஓக்கே வாட் ஹவ் ஆர் யு ஹே டா டி பா நல்லா ஃபைன் லோல் ஹாஹா ஹஹா ரியலி ஆம் இல்லை எஸ் நோ சூப்பர் வாவ் ஹ்ம்ம் ம்ம்
+love miss lol haha hehe wow super nice cool i u too so much really""".split())
 
 
 def is_smalltalk(q):
@@ -260,7 +262,7 @@ def make_kural_context(user_text, prev_texts=()):
     return ("Idea to build your reply on: " + idea + "\n"
             "Build your reply on this idea: first react to what he actually said, then bring the idea "
             "in naturally as your own gentle opinion, advice or small everyday example (one short sentence). "
-            "Keep the whole reply under 30 words. Never quote it; never mention a verse, number, book, poet or ancient wisdom."), False
+            "Keep the whole reply under 20 words and at most 2 short sentences. Never quote it; never mention a verse, number, book, poet or ancient wisdom."), False
 
 
 def format_kural(item):
@@ -288,9 +290,32 @@ VOICE_TAMIL = "ta-IN-PallaviNeural"     # female Tamil
 VOICE_ENGLISH = "en-IN-NeerjaNeural"    # female Indian English (also used for Tanglish)
 
 
-def synthesize(text):
-    voice = VOICE_TAMIL if TAMIL_RE.search(text) else VOICE_ENGLISH
+AZURE_KEY = os.environ.get("AZURE_SPEECH_KEY", "").strip()
+AZURE_REGION = os.environ.get("AZURE_SPEECH_REGION", "").strip()
 
+
+def _xml(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def synthesize_azure(text, voice):
+    """Official Azure Speech REST API (same neural voices as edge-tts, but supported + stable)."""
+    lang = voice[:5]
+    ssml = (f"<speak version='1.0' xml:lang='{lang}'><voice name='{voice}'>"
+            f"<prosody rate='+5%'>{_xml(text)}</prosody></voice></speak>")
+    req = Request(
+        f"https://{AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1",
+        data=ssml.encode("utf-8"),
+        headers={"Ocp-Apim-Subscription-Key": AZURE_KEY,
+                 "Content-Type": "application/ssml+xml",
+                 "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+                 "User-Agent": "SubhaAI"},
+        method="POST")
+    with urlopen(req, timeout=30) as r:
+        return r.read()
+
+
+def synthesize_edge(text, voice):
     async def run():
         audio = bytearray()
         async for chunk in edge_tts.Communicate(text, voice, rate="+5%").stream():
@@ -299,6 +324,18 @@ def synthesize(text):
         return bytes(audio)
 
     return asyncio.run(run())
+
+
+def synthesize(text):
+    voice = VOICE_TAMIL if TAMIL_RE.search(text) else VOICE_ENGLISH
+    if AZURE_KEY and AZURE_REGION:                      # official service first
+        try:
+            return synthesize_azure(text, voice)
+        except Exception as exc:
+            print(f"[Subha] azure tts failed: {exc}")
+            if not HAVE_EDGE_TTS:
+                raise
+    return synthesize_edge(text, voice)
 
 
 # --------------------------------------------------------------------------
@@ -311,6 +348,7 @@ PERSONA = """You are Subha (சுபா), the user's close friend chatting on a
 - Use everyday spoken Tamil (enna, seri, aama, illa, romba, da, pa). Avoid bookish or formal Tamil.
 - No lists, markdown or emojis. Your words are read aloud.
 - You are an AI friend. Do not claim human experiences.
+- Match the length of the user's message: a short or casual message gets a very short reply (under 12 words). Never give moral lessons or life advice unless the user asks for advice.
 - You do not know the user's name. Never assume one. In your first reply, greet and casually ask their name once. After they tell you, use it naturally now and then.
 - Never mention Thirukkural, Valluvar or verses unless he explicitly asks for a Kural.
 - If a [private note] is attached, build your reply on its idea in your own casual words, as your own opinion. Never quote or reveal the note.
@@ -922,7 +960,7 @@ class SubhaHandler(BaseHTTPRequestHandler):
                 pass
 
     def handle_tts(self):
-        if not HAVE_EDGE_TTS:
+        if not (HAVE_EDGE_TTS or (AZURE_KEY and AZURE_REGION)):
             self.send_error_json(503, "Voice service not available")
             return
         try:
@@ -941,7 +979,7 @@ class SubhaHandler(BaseHTTPRequestHandler):
         except ValueError as exc:
             self.send_error_json(400, str(exc))
         except Exception as exc:
-            print(f"[Subha] voice error: {exc}")
+            print(f"[Subha] voice error: {type(exc).__name__}: {exc}")
             self.send_error_json(500, "Voice error")
 
     def log_message(self, fmt, *args):
