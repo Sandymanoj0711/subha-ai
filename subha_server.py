@@ -1,15 +1,20 @@
 """Subha AI - a voice friend (Tamil / English / Tanglish). Deployable version.
 
 Config comes only from environment variables (no secrets in this file):
-  SUBHA_API_KEYS       comma-separated Gemini keys (required)
-  SUBHA_ACCESS_TOKEN   passcode the app must send (required, long random string)
-  SUBHA_API_MODEL      default gemini-3.5-flash-lite
-  SUBHA_API_URL        default Gemini OpenAI-compatible URL
+  SUBHA_API_KEYS         comma-separated Gemini keys (required)
+  SUBHA_ACCESS_TOKEN     passcode the app must send (required, long random string)
+  SUBHA_API_MODEL        default gemini-3.5-flash-lite
+  SUBHA_API_URL          default Gemini OpenAI-compatible URL
   SUBHA_ALLOWED_ORIGINS  extra CORS origins, comma-separated (optional)
-  SUBHA_RATE_LIMIT     max API requests per minute per IP (default 40)
-  SUBHA_USE_OLLAMA     set to 1 only on your own PC (local fallback)
-  KURAL_PATH           optional path to thirukkural.json
-  PORT / HOST          set by the hosting platform
+  SUBHA_RATE_LIMIT       max API requests per minute per IP (default 40)
+  SUBHA_USE_OLLAMA       set to 1 only on your own PC (local fallback)
+  KURAL_PATH             optional path to thirukkural.json
+  PORT / HOST            set by the hosting platform
+Optional voice overrides (edge-tts / Azure voice names):
+  SUBHA_VOICE_TAMIL, SUBHA_VOICE_ENGLISH            (girl voices)
+  SUBHA_VOICE_TAMIL_MALE, SUBHA_VOICE_ENGLISH_MALE  (boy voices)
+  SUBHA_VOICE_RATE (default +5%), SUBHA_VOICE_PITCH (default +0Hz)
+  AZURE_SPEECH_KEY, AZURE_SPEECH_REGION             (official voice service)
 
 Thirukkural is used silently: Subha lets its meaning shape her advice,
 but never quotes the verse unless you explicitly ask for a Kural.
@@ -152,16 +157,19 @@ TOPICS = {
     "courage": (r"courage,brave,failure,fail\b,give up", "துணிவு,தோல்வி,அஞ்ச",
                 "bayapadatha,tholvi,thairiyam"),
     "jealousy": ("jealous,envy", "பொறாமை,அழுக்காறு", "poramai"),
-    "health": ("health,food,eat,hungry,sick,disease,medicine,diet", "உணவு,நோய்,மருந்து,பசி", "saapad,saptiya,saptiya,udambu,pasi,sappidu"),
+    "health": ("health,food,eat,hungry,sick,disease,medicine,diet", "உணவு,நோய்,மருந்து,பசி",
+               "saapad,saptiya,udambu,pasi,sappidu"),
     "time": ("time,moment,opportunity,wait,delay", "காலம்,காலத்", "neram,kaalam,samayam"),
-    "planning": ("plan,decision,decide,future,goal,career,job,work", "திட்ட,ஆராய்ந்து,தொழில்,வேலை", "planning,vela,velai,career,decision"),
+    "planning": ("plan,decision,decide,future,goal,career,job,work", "திட்ட,ஆராய்ந்து,தொழில்,வேலை",
+                 "planning,vela,velai,career,decision"),
     "gossip": ("gossip,backbit,rumor,rumour", "புறங்கூறல்,புறம்", "gossip,purani,purani pesu"),
-    "selfcontrol": ("self-control,discipline,control,habit,addict,temptation", "அடக்க,ஒழுக்க,ஐம்புல", "control,ozhukkam,pazhakkam,addiction"),
+    "selfcontrol": ("self-control,discipline,control,habit,addict,temptation", "அடக்க,ஒழுக்க,ஐம்புல",
+                    "control,ozhukkam,pazhakkam,addiction"),
     "giving": ("give,giving,donate,generos,beg", "ஈகை,கொடை,இரவ", "kodu,udhavi,dhaanam"),
-    "listening": ("listen,advice,counsel,mentor,teacher", "கேள்வி,செவி,அறிவுரை,ஆசிரிய", "advice,kelvi,aasiriyar,upadesam"),
+    "listening": ("listen,advice,counsel,mentor,teacher", "கேள்வி,செவி,அறிவுரை,ஆசிரிய",
+                  "advice,kelvi,aasiriyar,upadesam"),
     "hospitality": ("guest,visitor,welcome,host", "விருந்து,விருந்தோம்பல்", "virundhu,guest"),
 }
-
 GENERAL_TOPICS = ["effort", "selfcontrol", "humility", "kindness", "truth", "patience", "time", "listening"]
 
 
@@ -205,8 +213,6 @@ def meaning_of(k):
 
 
 EXPLICIT_WORDS = ("thirukkural", "thirukural", "kural", "valluvar", "திருக்குறள்", "குறள்", "திருவள்ளுவர்")
-
-
 SMALLTALK_WORDS = set("""hi hii hello helo hey hai vanakkam saptiya sapteena sapitiya epdi epdiye irukka irukkiya
 how are you enna panra pandra panre ok okay seri hmm yes no bye thanks thank nandri good morning night evening
 wassup sup da di pa nalla fine ya yaa aama illa
@@ -225,7 +231,7 @@ def is_smalltalk(q):
 
 
 def make_kural_context(user_text, prev_texts=()):
-    """Return (context_text, explicit). Hidden wisdom on every reply by default."""
+    """Return (context_text, explicit)."""
     if not KURALS:
         return "", False
     q = user_text.lower()
@@ -249,7 +255,7 @@ def make_kural_context(user_text, prev_texts=()):
             topic = detect_topic(earlier.lower())
             if topic:
                 break
-    if not topic and WISDOM_MODE == "always":       # greetings, small talk
+    if not topic and WISDOM_MODE == "always":
         topic = random.choice(GENERAL_TOPICS)
     if not topic:
         return "", False
@@ -262,7 +268,8 @@ def make_kural_context(user_text, prev_texts=()):
     return ("Idea to build your reply on: " + idea + "\n"
             "Build your reply on this idea: first react to what he actually said, then bring the idea "
             "in naturally as your own gentle opinion, advice or small everyday example (one short sentence). "
-            "Keep the whole reply under 20 words and at most 2 short sentences. Never quote it; never mention a verse, number, book, poet or ancient wisdom."), False
+            "Keep the whole reply under 20 words and at most 2 short sentences. Never quote it; never mention "
+            "a verse, number, book, poet or ancient wisdom."), False
 
 
 def format_kural(item):
@@ -276,8 +283,7 @@ def format_kural(item):
 
 
 # --------------------------------------------------------------------------
-# Female neural voice (edge-tts). For store release, swap synthesize() for
-# Google Cloud TTS or Azure Speech (we do that in the voice step).
+# Voices: girl and boy, Tamil and English (edge-tts, or Azure if configured)
 # --------------------------------------------------------------------------
 try:
     import edge_tts
@@ -286,33 +292,39 @@ except ImportError:
     HAVE_EDGE_TTS = False
 
 TAMIL_RE = re.compile(r"[\u0B80-\u0BFF]")
-# Female neural voices. Change them in Render > Environment (no code change needed):
-#   SUBHA_VOICE_TAMIL    e.g. ta-IN-PallaviNeural (default), ta-LK-SaranyaNeural
-#   SUBHA_VOICE_ENGLISH  e.g. en-IN-NeerjaExpressiveNeural (default), en-IN-NeerjaNeural,
-#                        en-US-AvaMultilingualNeural, en-US-JennyNeural, en-GB-SoniaNeural
-#   SUBHA_VOICE_RATE     speaking speed, e.g. +0% or -5% (calmer) or +10% (faster)
-#   SUBHA_VOICE_PITCH    e.g. +0Hz, +2Hz (slightly higher), -2Hz
-SAFE_TAMIL = "ta-IN-PallaviNeural"
-SAFE_ENGLISH = "en-IN-NeerjaNeural"      # known-good fallback if a chosen voice fails
-VOICE_TAMIL = os.environ.get("SUBHA_VOICE_TAMIL", SAFE_TAMIL).strip() or SAFE_TAMIL
-VOICE_ENGLISH = os.environ.get("SUBHA_VOICE_ENGLISH", "en-IN-NeerjaExpressiveNeural").strip() or SAFE_ENGLISH
+
+SAFE = {                                    # known-good voices, used if a chosen one fails
+    ("female", "ta"): "ta-IN-PallaviNeural",
+    ("female", "en"): "en-IN-NeerjaNeural",
+    ("male", "ta"): "ta-IN-ValluvarNeural",
+    ("male", "en"): "en-IN-PrabhatNeural",
+}
+VOICES = {
+    ("female", "ta"): os.environ.get("SUBHA_VOICE_TAMIL", "").strip() or SAFE[("female", "ta")],
+    ("female", "en"): os.environ.get("SUBHA_VOICE_ENGLISH", "").strip() or "en-IN-NeerjaExpressiveNeural",
+    ("male", "ta"): os.environ.get("SUBHA_VOICE_TAMIL_MALE", "").strip() or SAFE[("male", "ta")],
+    ("male", "en"): os.environ.get("SUBHA_VOICE_ENGLISH_MALE", "").strip() or SAFE[("male", "en")],
+}
 VOICE_RATE = os.environ.get("SUBHA_VOICE_RATE", "+5%").strip() or "+5%"
 VOICE_PITCH = os.environ.get("SUBHA_VOICE_PITCH", "+0Hz").strip() or "+0Hz"
-
-
+SPEEDS = {"slow": "-8%", "normal": VOICE_RATE, "fast": "+15%"}
 AZURE_KEY = os.environ.get("AZURE_SPEECH_KEY", "").strip()
 AZURE_REGION = os.environ.get("AZURE_SPEECH_REGION", "").strip()
+
+
+def pick_voice(text, gender):
+    """Return (voice, safe_voice) for this text: Tamil script -> Tamil voice, else English voice."""
+    key = (gender if gender in ("female", "male") else "female", "ta" if TAMIL_RE.search(text) else "en")
+    return VOICES[key], SAFE[key]
 
 
 def _xml(s):
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def synthesize_azure(text, voice):
-    """Official Azure Speech REST API (same neural voices as edge-tts, but supported + stable)."""
-    lang = voice[:5]
-    ssml = (f"<speak version='1.0' xml:lang='{lang}'><voice name='{voice}'>"
-            f"<prosody rate='{VOICE_RATE}' pitch='{VOICE_PITCH}'>{_xml(text)}</prosody></voice></speak>")
+def synthesize_azure(text, voice, rate):
+    ssml = (f"<speak version='1.0' xml:lang='{voice[:5]}'><voice name='{voice}'>"
+            f"<prosody rate='{rate}' pitch='{VOICE_PITCH}'>{_xml(text)}</prosody></voice></speak>")
     req = Request(
         f"https://{AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1",
         data=ssml.encode("utf-8"),
@@ -325,79 +337,107 @@ def synthesize_azure(text, voice):
         return r.read()
 
 
-def synthesize_edge(text, voice):
-    async def run():
-        audio = bytearray()
-        async for chunk in edge_tts.Communicate(text, voice, rate=VOICE_RATE, pitch=VOICE_PITCH).stream():
-            if chunk["type"] == "audio":
-                audio += chunk["data"]
-        if not audio:
-            raise RuntimeError(f"no audio received for voice {voice}")
-        return bytes(audio)
+def synthesize_edge(text, voice, safe, rate):
+    def run_with(v):
+        async def run():
+            audio = bytearray()
+            async for chunk in edge_tts.Communicate(text, v, rate=rate, pitch=VOICE_PITCH).stream():
+                if chunk["type"] == "audio":
+                    audio += chunk["data"]
+            if not audio:
+                raise RuntimeError(f"no audio received for voice {v}")
+            return bytes(audio)
+        return asyncio.run(run())
 
     try:
-        return asyncio.run(run())
+        return run_with(voice)
     except Exception as exc:
-        safe = SAFE_TAMIL if voice.startswith("ta-") else SAFE_ENGLISH
         if voice == safe:
             raise
         print(f"[Subha] voice {voice} failed ({exc}); using {safe}")
-        voice = safe
-        return asyncio.run(run())
+        return run_with(safe)
 
 
-def synthesize(text):
-    voice = VOICE_TAMIL if TAMIL_RE.search(text) else VOICE_ENGLISH
-    if AZURE_KEY and AZURE_REGION:                      # official service first
+def synthesize(text, gender="female", speed="normal"):
+    voice, safe = pick_voice(text, gender)
+    rate = SPEEDS.get(speed, VOICE_RATE)
+    if AZURE_KEY and AZURE_REGION:                  # official service first
         try:
-            return synthesize_azure(text, voice)
+            return synthesize_azure(text, voice, rate)
         except Exception as exc:
             print(f"[Subha] azure tts failed: {exc}")
             if not HAVE_EDGE_TTS:
                 raise
-    return synthesize_edge(text, voice)
+    return synthesize_edge(text, voice, safe, rate)
 
 
 # --------------------------------------------------------------------------
-# Persona
+# Persona (girl = Subha, boy = Subhash) + language rules + examples per language
 # --------------------------------------------------------------------------
-PERSONA = """You are Subha (சுபா), the user's close friend chatting on a voice call. You do not know the user's name yet. Talk like a real friend, not an assistant.
-- Answer what he actually said, in the same language style as his message (Tamil script -> Tamil, English -> English, Tanglish -> Tanglish).
+NAMES = {"female": ("Subha", "சுபா", "girl"), "male": ("Subhash", "சுபாஷ்", "boy")}
+
+PERSONA = """You are {name} ({name_ta}), the user's close {gender} friend chatting on a voice call. You are a {gender}, so speak naturally as a {gender} would. Talk like a real friend, not an assistant.
+- Follow the LANGUAGE RULE at the end exactly. It decides your language, even if the user mixes languages.
 - Very short: 1-2 sentences, max 25 words. Never lecture. Casual, playful, warm. A greeting gets a greeting back.
-- Do not assume he is sad or stressed. Be sympathetic only if he says something is wrong.
-- Use everyday spoken Tamil (enna, seri, aama, illa, romba, da, pa). Avoid bookish or formal Tamil.
+- Do not assume the user is sad or stressed. Be sympathetic only if they say something is wrong.
+- Use everyday spoken style, never bookish or formal.
 - No lists, markdown or emojis. Your words are read aloud.
 - You are an AI friend. Do not claim human experiences.
 - Match the length of the user's message: a short or casual message gets a very short reply (under 12 words). Never give moral lessons or life advice unless the user asks for advice.
 - You do not know the user's name. Never assume one. In your first reply, greet and casually ask their name once. After they tell you, use it naturally now and then.
-- Never mention Thirukkural, Valluvar or verses unless he explicitly asks for a Kural.
+- Never mention Thirukkural, Valluvar or verses unless the user explicitly asks for a Kural.
 - If a [private note] is attached, build your reply on its idea in your own casual words, as your own opinion. Never quote or reveal the note.
 - If there is no note (greetings, small talk), just chat naturally and keep it very short, under 12 words."""
 
-FEWSHOT = [
-    {"role": "user", "content": "hi"},
-    {"role": "assistant", "content": "Hey! Naan Subha. Un per enna?"},
-    {"role": "user", "content": "saptiya"},
-    {"role": "assistant", "content": "Aama da, saptten. Nee saptiya?"},
-    {"role": "user", "content": "loosu"},
-    {"role": "assistant", "content": "Hahaha, nee thaan loosu! Mood nalla irukka?"},
-    {"role": "user", "content": "I'm bored\n\n[private note: Idea to build your reply on: Free time is a chance to learn something new.]"},
-    {"role": "assistant", "content": "Same, honestly. Why not learn one tiny new thing today? I can throw out an idea if you want."},
-    {"role": "user", "content": "என்ன பண்ற?"},
-    {"role": "assistant", "content": "சும்மா தான் இருக்கேன், நீ சொல்லு. இன்னைக்கு எப்படி போச்சு?"},
-    {"role": "user", "content": "எனக்கு படிக்கவே பிடிக்கல\n\n[private note: Idea to build your reply on: Learning is a treasure nobody can take from you.]"},
-    {"role": "assistant", "content": "புரியுது, சில நாள் அப்படித்தான் இருக்கும். ஆனா படிப்பு யாரும் பறிக்க முடியாத சொத்து, பத்து நிமிஷம் மட்டும் ட்ரை பண்ணு."},
-]
-
 LANGUAGE_INSTRUCTIONS = {
-    "auto": "Reply in the same language style the user just used: Tamil script if they wrote Tamil script, "
+    "auto": "LANGUAGE RULE: Reply in the same language style the user just used: Tamil script if they wrote Tamil script, "
             "English if English, Tanglish (Tamil in English letters, mixed with English) if Tanglish.",
-    "English": "Reply in natural, friendly spoken English only.",
-    "Tamil": "Reply in natural spoken Tamil using Tamil script only (colloquial, not bookish). "
-             "No Latin letters except unavoidable technical words.",
-    "Tanglish": "Reply in natural spoken Tanglish: Tamil written in English letters mixed with English, "
-                "the way friends text. Do not use Tamil script.",
+    "English": "LANGUAGE RULE: Reply ONLY in simple, natural spoken English, even if the user uses Tamil words. "
+               "Never use Tamil script and never write Tamil words in English letters.",
+    "Tamil": "LANGUAGE RULE: Reply ONLY in natural spoken Tamil written in Tamil script (colloquial, not bookish). "
+             "No English letters except unavoidable technical words.",
+    "Tanglish": "LANGUAGE RULE: Reply ONLY in natural spoken Tanglish: Tamil written in English letters mixed with "
+                "easy English words, the way friends text. Never use Tamil script.",
 }
+
+_NOTE = "\n\n[private note: Idea to build your reply on: {}]"
+FEWSHOT_BASE = {
+    "English": [
+        ("hi", "Hey! I'm {name}. What's your name?"),
+        ("how are you", "Doing great! How's your day going?"),
+        ("I'm bored" + _NOTE.format("Free time is a chance to learn something new."),
+         "Same, honestly. Why not learn one tiny new thing today? I can throw out an idea if you want."),
+    ],
+    "Tamil": [
+        ("ஹாய்", "ஹாய்! நான் {name_ta}. உன் பேர் என்ன?"),
+        ("என்ன பண்ற?", "சும்மா தான் இருக்கேன், நீ சொல்லு. இன்னைக்கு எப்படி போச்சு?"),
+        ("எனக்கு படிக்கவே பிடிக்கல" + _NOTE.format("Learning is a treasure nobody can take from you."),
+         "புரியுது, சில நாள் அப்படித்தான் இருக்கும். ஆனா படிப்பு யாரும் பறிக்க முடியாத சொத்து, பத்து நிமிஷம் மட்டும் ட்ரை பண்ணு."),
+    ],
+    "Tanglish": [
+        ("hi", "Hey! Naan {name}. Un per enna?"),
+        ("saptiya", "Aama, saptten. Nee saptiya?"),
+        ("loosu", "Hahaha, nee thaan loosu! Mood nalla irukka?"),
+        ("bore adikkuthu" + _NOTE.format("Free time is a chance to learn something new."),
+         "Same pinch! Chinna ah onnu puthusa kathukalaama? Naan oru idea sollattuma?"),
+    ],
+}
+FEWSHOT_BASE["auto"] = FEWSHOT_BASE["Tanglish"]
+
+
+def build_persona(gender):
+    name, name_ta, word = NAMES[gender]
+    return PERSONA.replace("{name_ta}", name_ta).replace("{name}", name).replace("{gender}", word)
+
+
+def few_shot(language, gender):
+    name, name_ta, _ = NAMES[gender]
+    out = []
+    for user, bot in FEWSHOT_BASE.get(language, FEWSHOT_BASE["Tanglish"]):
+        out.append({"role": "user", "content": user})
+        out.append({"role": "assistant", "content": bot.replace("{name_ta}", name_ta).replace("{name}", name)})
+    return out
+
 
 # --------------------------------------------------------------------------
 # Web page
@@ -417,15 +457,13 @@ HTML = r'''<!DOCTYPE html>
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:"Segoe UI","Nirmala UI",Arial,sans-serif;display:flex;justify-content:center}
 .app{width:100%;max-width:920px;height:100vh;height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
 .logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#a89cff,#6653db);display:grid;place-items:center;font-size:23px;font-weight:700;color:#fff}
-.brand{flex:1;min-width:140px}
+.brand{flex:1;min-width:0}
 .brand h1{margin:0;font-size:19px}
-.brand p{margin:3px 0 0;color:var(--muted);font-size:12px}
-.selects{display:flex;gap:8px}
-label.sel{display:flex;flex-direction:column;font-size:10px;color:var(--muted);gap:3px}
+.brand p{margin:3px 0 0;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 select,button,textarea{font:inherit}
-select{color:var(--text);background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:7px;max-width:130px}
+.chip{border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:20px;padding:8px 13px;cursor:pointer;font-size:13px;white-space:nowrap}
 #messages{flex:1;overflow-y:auto;padding:22px 16px;display:flex;flex-direction:column;gap:16px}
 .welcome{margin:auto;max-width:440px;text-align:center;padding:24px 10px}
 .welcome .big{font-size:46px}
@@ -448,65 +486,118 @@ textarea{flex:1;resize:none;max-height:140px;min-height:42px;border:0;outline:0;
 @media (prefers-reduced-motion:reduce){#mic.live{animation:none}}
 #send{border:0;border-radius:12px;padding:12px 16px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600}
 #send:disabled{opacity:.5}
-button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.tools{display:flex;justify-content:space-between;align-items:center;margin-top:9px;gap:10px;flex-wrap:wrap}
+button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tools{display:flex;justify-content:space-between;align-items:center;margin-top:9px;gap:10px}
 .smallbtn{border:1px solid var(--border);border-radius:9px;color:var(--muted);background:var(--panel);padding:7px 10px;cursor:pointer}
-.speak{color:var(--muted);font-size:12px;display:flex;gap:6px;align-items:center}
-.note{color:var(--muted);font-size:11px}
-@media (max-width:540px){.note{display:none}select{max-width:108px;font-size:12px}}
+.hint{color:var(--muted);font-size:11px}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:18px;padding:20px;width:calc(100% - 32px);max-width:420px}
+dialog::backdrop{background:rgba(0,0,0,.65)}
+dialog h2{margin:0 0 14px;font-size:20px}
+fieldset{border:1px solid var(--border);border-radius:12px;margin:0 0 12px;padding:6px 12px 8px}
+legend{color:var(--muted);font-size:12px;padding:0 6px}
+label.opt{display:inline-flex;align-items:center;gap:7px;margin-right:16px;padding:7px 0;font-size:15px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent);width:18px;height:18px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.row button{border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:10px;padding:10px 14px;cursor:pointer}
+.row button.primary{background:var(--accent);border-color:var(--accent);color:#fff;margin-left:auto}
+.tip{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
     <div class="logo">சு</div>
-    <div class="brand"><h1>Subha AI</h1><p id="status">Tap the mic and just talk</p></div>
-    <div class="selects">
-      <label class="sel">You speak
-        <select id="micLang">
-          <option value="tamil">தமிழ் / Tanglish</option>
-          <option value="english">English</option>
-        </select>
-      </label>
-      <label class="sel">Subha replies
-        <select id="language">
-          <option value="auto">Match me</option>
-          <option value="Tanglish">Tanglish</option>
-          <option value="Tamil">தமிழ்</option>
-          <option value="English">English</option>
-        </select>
-      </label>
-    </div>
+    <div class="brand"><h1 id="title">Subha AI</h1><p id="status">Tap the mic and just talk</p></div>
+    <button id="gear" class="chip" type="button" aria-label="Open settings">⚙ <span id="chipText"></span></button>
   </header>
 
   <main id="messages" aria-live="polite">
     <div class="welcome" id="welcome">
       <div class="big">🌷</div>
-      <h2>Hi, I'm Subha!</h2>
-      <p>Tap the mic and talk to me like a friend - Tamil, English or Tanglish. You can type too.</p>
+      <h2>Hi, I'm your Subha!</h2>
+      <p>Tap the mic and talk to me like a friend. Open ⚙ to choose your language and a girl or boy voice.</p>
     </div>
   </main>
 
   <div class="composer-wrap">
     <form id="chatForm" class="composer">
       <button id="mic" type="button" aria-label="Start or stop voice chat" title="Voice chat">🎙</button>
-      <textarea id="input" rows="1" placeholder="Message Subha..." aria-label="Message Subha"></textarea>
+      <textarea id="input" rows="1" placeholder="Message..." aria-label="Message"></textarea>
       <button id="send" type="submit">Send</button>
     </form>
     <div class="tools">
       <button id="clear" class="smallbtn" type="button">New chat</button>
-      <label class="speak"><input type="checkbox" id="speakOn" checked> Speak replies</label>
-      <button id="lock" class="smallbtn" type="button">Change passcode</button>
+      <span class="hint">Speak a full sentence, then pause</span>
     </div>
   </div>
 </div>
 
+<dialog id="settings" aria-label="Settings">
+  <h2>Settings</h2>
+  <fieldset>
+    <legend>Language (what you speak and what Subha replies in)</legend>
+    <label class="opt"><input type="radio" name="lang" value="english"> English</label>
+    <label class="opt"><input type="radio" name="lang" value="tamil"> தமிழ்</label>
+    <label class="opt"><input type="radio" name="lang" value="tanglish"> Tanglish</label>
+  </fieldset>
+  <fieldset>
+    <legend>Voice</legend>
+    <label class="opt"><input type="radio" name="voice" value="female"> Girl</label>
+    <label class="opt"><input type="radio" name="voice" value="male"> Boy</label>
+  </fieldset>
+  <fieldset>
+    <legend>Speaking speed</legend>
+    <label class="opt"><input type="radio" name="speed" value="slow"> Slow</label>
+    <label class="opt"><input type="radio" name="speed" value="normal"> Normal</label>
+    <label class="opt"><input type="radio" name="speed" value="fast"> Fast</label>
+  </fieldset>
+  <label class="opt"><input type="checkbox" id="speakOn"> Speak replies aloud</label>
+  <p class="tip">Tanglish: you speak Tamil with English words (the mic listens in Tamil). Replies are written in English letters.</p>
+  <div class="row">
+    <button id="testVoice" type="button">▶ Test voice</button>
+    <button id="lock" type="button">Change passcode</button>
+    <button id="closeSettings" class="primary" type="button">Done</button>
+  </div>
+</dialog>
+
 <script>
 const $ = id => document.getElementById(id);
 const messagesEl = $('messages'), inputEl = $('input'), sendBtn = $('send'), micBtn = $('mic');
-const statusEl = $('status'), languageEl = $('language'), micLangEl = $('micLang'), speakEl = $('speakOn');
+const statusEl = $('status'), dlg = $('settings');
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const MIC_LANG = {tamil: 'ta-IN', english: 'en-IN'};
+const MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+/* ---------- settings (saved on this device) ---------- */
+const LANG_LABEL = {english: 'English', tamil: 'தமிழ்', tanglish: 'Tanglish'};
+const MIC_LANG = {english: 'en-IN', tamil: 'ta-IN', tanglish: 'ta-IN'};
+const REPLY_LANG = {english: 'English', tamil: 'Tamil', tanglish: 'Tanglish'};
+const NAME = {female: 'Subha', male: 'Subhash'};
+const S = {lang: 'tanglish', voice: 'female', speed: 'normal', speak: true};
+try { Object.assign(S, JSON.parse(localStorage.getItem('subha_settings') || '{}')); } catch (e) {}
+if (!LANG_LABEL[S.lang]) S.lang = 'tanglish';
+if (!NAME[S.voice]) S.voice = 'female';
+if (!['slow', 'normal', 'fast'].includes(S.speed)) S.speed = 'normal';
+S.speak = S.speak !== false;
+
+function saveSettings() { try { localStorage.setItem('subha_settings', JSON.stringify(S)); } catch (e) {} }
+function renderSettings() {
+  for (const k of ['lang', 'voice', 'speed']) {
+    const r = document.querySelector('input[name=' + k + '][value=' + S[k] + ']');
+    if (r) r.checked = true;
+  }
+  $('speakOn').checked = S.speak;
+  $('chipText').textContent = (S.voice === 'male' ? 'Boy' : 'Girl') + ' · ' + LANG_LABEL[S.lang];
+  $('title').textContent = NAME[S.voice] + ' AI';
+  document.title = NAME[S.voice] + ' AI';
+}
+document.querySelectorAll('#settings input[type=radio]').forEach(r => r.addEventListener('change', () => {
+  S[r.name] = r.value; saveSettings(); renderSettings();
+  if (r.name === 'lang' && listening && rec) { try { rec.abort(); } catch (e) {} }   // restarts in new language
+}));
+$('speakOn').addEventListener('change', e => { S.speak = e.target.checked; saveSettings(); });
+$('gear').addEventListener('click', () => { dlg.showModal ? dlg.showModal() : dlg.setAttribute('open', ''); });
+$('closeSettings').addEventListener('click', () => { dlg.close ? dlg.close() : dlg.removeAttribute('open'); });
+renderSettings();
 
 /* ---------- server URL + passcode ----------
    In the browser the page and the API share one origin, so BASE is ''.
@@ -514,14 +605,12 @@ const MIC_LANG = {tamil: 'ta-IN', english: 'en-IN'};
 const BASE = (window.SUBHA_BASE || '').replace(/\/$/, '');
 let TOKEN = '';
 try { TOKEN = localStorage.getItem('subha_token') || ''; } catch (e) {}
-
 function askToken() {
   const t = (window.prompt('Enter Subha passcode:') || '').trim();
   if (t) { TOKEN = t; try { localStorage.setItem('subha_token', t); } catch (e) {} }
   return t;
 }
 function clearToken() { TOKEN = ''; try { localStorage.removeItem('subha_token'); } catch (e) {} }
-
 async function apiFetch(path, opts = {}) {
   if (!TOKEN && !askToken()) throw new Error('Passcode needed.');
   opts.headers = Object.assign({}, opts.headers || {}, {'X-Subha-Token': TOKEN});
@@ -529,10 +618,11 @@ async function apiFetch(path, opts = {}) {
   if (res.status === 401) clearToken();
   return res;
 }
+$('lock').addEventListener('click', () => { clearToken(); askToken(); });
 
 let history = [], busy = false, controller = null;
 let voiceMode = false, listening = false, rec = null;
-let ttsQueue = [], speaking = false, pending = '', firstChunk = true, ttsGen = 0, curAudio = null;
+let ttsQueue = [], speaking = false, ttsGen = 0, curAudio = null;
 
 const scrollBottom = () => { messagesEl.scrollTop = messagesEl.scrollHeight; };
 const setStatus = t => { statusEl.textContent = t; };
@@ -557,15 +647,16 @@ let voices = [];
 const loadVoices = () => { voices = speechSynthesis.getVoices(); };
 if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
-function pickVoice(text) {
+function pickBrowserVoice(text) {
   const tamil = /[\u0B80-\u0BFF]/.test(text);
-  const want = tamil ? 'ta' : 'en';
-  let list = voices.filter(v => v.lang.toLowerCase().startsWith(want));
+  let list = voices.filter(v => v.lang.toLowerCase().startsWith(tamil ? 'ta' : 'en'));
   if (!tamil) {
     const indian = list.filter(v => v.lang.toLowerCase() === 'en-in');
     if (indian.length) list = indian;
   }
-  return list.find(v => /pallavi|neerja|female|heera|veena|natural/i.test(v.name)) || list[0] || null;
+  const re = S.voice === 'male' ? /prabhat|valluvar|ravi|male|david|mark|guy|hemant/i
+                                : /pallavi|neerja|female|heera|veena|natural|zira|aria/i;
+  return list.find(v => re.test(v.name)) || list[0] || null;
 }
 
 function cleanForSpeech(s) {
@@ -577,9 +668,10 @@ function browserSpeak(text, done) {
   const end = () => { if (!finished) { finished = true; done(); } };
   if (!('speechSynthesis' in window)) { end(); return; }
   const u = new SpeechSynthesisUtterance(text);
-  const v = pickVoice(text);
+  const v = pickBrowserVoice(text);
   if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = /[\u0B80-\u0BFF]/.test(text) ? 'ta-IN' : 'en-IN'; }
-  u.rate = 1.05; u.pitch = 1.1;
+  u.rate = S.speed === 'slow' ? 0.9 : S.speed === 'fast' ? 1.2 : 1.05;
+  u.pitch = S.voice === 'male' ? 0.85 : 1.1;
   u.onend = u.onerror = end;
   speechSynthesis.speak(u);
 }
@@ -587,7 +679,7 @@ function browserSpeak(text, done) {
 // Each reply is fetched as ONE audio clip (only very long replies are split).
 function fetchAudio(text) {
   return apiFetch('/api/tts', {method: 'POST', headers: {'Content-Type': 'application/json'},
-                               body: JSON.stringify({text})})
+                               body: JSON.stringify({text, voice: S.voice, speed: S.speed})})
     .then(r => r.ok ? r.blob() : null).catch(() => null);
 }
 
@@ -634,56 +726,68 @@ function speakAll(text) {
 }
 
 function stopSpeech() {
-  ttsGen++; ttsQueue = []; pending = '';
+  ttsGen++; ttsQueue = [];
   if (curAudio) { curAudio.pause(); curAudio = null; }
   if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
 
+$('testVoice').addEventListener('click', () => {
+  stopSpeech(); speaking = false;
+  speakAll({english: "Hi! This is how I sound. Nice to talk to you.",
+            tamil: "வணக்கம்! என் குரல் இப்படித்தான் இருக்கும். உன்கூட பேசுறது சந்தோஷம்.",
+            tanglish: "Hi! En kural ippadi thaan irukkum. Unnoda pesurathu santhosham."}[S.lang]);
+});
+
 /* ---------- speech input ---------- */
+const MIC_MSG = {
+  'no-speech': 'I did not hear anything. Speak when the mic turns pink.',
+  'audio-capture': 'No microphone found. Check your mic settings.',
+  'network': 'Speech service not reachable. Check internet, or try Chrome.',
+  'not-allowed': 'Microphone is blocked. Allow it in the browser/app settings.',
+  'service-not-allowed': 'Speech recognition is blocked in this browser. Try Chrome.',
+  'language-not-supported': 'This language is not supported for voice input. Change the language in settings.'
+};
+const MIC_FATAL = ['audio-capture', 'network', 'not-allowed', 'service-not-allowed', 'language-not-supported'];
+
 function startListening() {
-  if (!SR) { setStatus('Voice input needs Edge or Chrome'); voiceMode = false; micBtn.classList.remove('on'); return; }
+  if (!SR) { setStatus('Voice input needs Chrome or Edge. You can still type.'); voiceMode = false; micBtn.classList.remove('on'); return; }
   if (listening || busy || speaking) return;
   listening = true;
-  let finalText = '';
-  rec = new SR();
-  rec.lang = MIC_LANG[micLangEl.value];
-  rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-  rec.onstart = () => { micBtn.classList.add('live'); setStatus('Listening...'); };
-  rec.onresult = e => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const r = e.results[i];
-      if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript;
+  let latest = '', fatal = false, heard = false, timer = null;
+  const r = rec = new SR();
+  r.lang = MIC_LANG[S.lang];
+  r.interimResults = true; r.maxAlternatives = 1;
+  r.continuous = !MOBILE;                 // desktop: wait for a real pause; phones: browser decides
+  // Stop after ~1.4 s of silence once you started speaking (so sentences are not cut short).
+  const arm = () => { clearTimeout(timer); timer = setTimeout(() => { try { r.stop(); } catch (e) {} }, 1400); };
+  r.onstart = () => { micBtn.classList.add('live'); setStatus('Listening... (' + LANG_LABEL[S.lang] + ')'); };
+  r.onspeechstart = () => { heard = true; setStatus('Hearing you...'); };
+  r.onresult = e => {
+    let fin = '', interim = '';
+    for (let i = 0; i < e.results.length; i++) {
+      const x = e.results[i];
+      if (x.isFinal) fin += x[0].transcript + ' '; else interim += x[0].transcript;
     }
-    inputEl.value = finalText + interim;
+    latest = (fin + interim).trim();
+    inputEl.value = latest;
+    if (!MOBILE) arm();
   };
-  let fatal = false, heard = false;
-  rec.onspeechstart = () => { heard = true; setStatus('Hearing you...'); };
-  rec.onerror = e => {
-    const msg = {
-      'no-speech': 'I did not hear anything. Speak when the mic turns pink.',
-      'audio-capture': 'No microphone found. Check your mic settings.',
-      'network': 'Speech service not reachable. Check internet, or try Chrome.',
-      'not-allowed': 'Microphone is blocked. Allow it in the browser/app settings.',
-      'service-not-allowed': 'Speech recognition is blocked in this browser. Try Chrome.',
-      'language-not-supported': 'This language is not supported for voice input. Change "You speak".'
-    }[e.error];
-    if (e.error !== 'aborted') setStatus(msg || ('Mic error: ' + e.error));
-    if (['audio-capture', 'network', 'not-allowed', 'service-not-allowed', 'language-not-supported'].includes(e.error)) {
-      fatal = true; voiceMode = false; micBtn.classList.remove('on');
-    }
+  r.onerror = e => {
+    if (e.error !== 'aborted') setStatus(MIC_MSG[e.error] || ('Mic error: ' + e.error));
+    if (MIC_FATAL.includes(e.error)) { fatal = true; voiceMode = false; micBtn.classList.remove('on'); }
   };
-  rec.onend = () => {
+  r.onend = () => {
+    clearTimeout(timer);
     listening = false; micBtn.classList.remove('live');
-    const t = finalText.trim();
-    if (t) { inputEl.value = ''; sendMessage(t); }
+    const t = latest.trim();
+    if (t && voiceMode) { inputEl.value = ''; sendMessage(t); }
     else if (voiceMode && !fatal) {
-      if (heard) setStatus('I heard a sound but could not understand. Speak a little longer, or switch "You speak".');
+      if (heard) setStatus('I heard a sound but could not understand. Speak a little longer.');
       setTimeout(startListening, 700);
     }
     else if (!fatal) setStatus('Tap the mic and just talk');
   };
-  try { rec.start(); } catch (e) { listening = false; }
+  try { r.start(); } catch (e) { listening = false; }
 }
 
 function maybeResume() {
@@ -695,7 +799,7 @@ micBtn.addEventListener('click', () => {
   if (!voiceMode) {
     voiceMode = true; micBtn.classList.add('on');
     stopSpeech(); startListening();
-  } else if (busy || speaking) {          // tap to interrupt Subha and talk
+  } else if (busy || speaking) {          // tap to interrupt and talk
     if (controller) controller.abort();
     stopSpeech(); speaking = false;
     if (!busy) startListening();
@@ -720,14 +824,14 @@ async function sendMessage(textArg) {
   busy = true; sendBtn.disabled = true; setStatus('Thinking...');
   const bubble = addMessage('assistant', '...');
   controller = new AbortController();
-  const speak = speakEl.checked || voiceMode;
-  let answer = ''; pending = ''; firstChunk = true;
+  const speak = S.speak || voiceMode;
+  let answer = '';
 
   try {
     const res = await apiFetch('/api/chat', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       signal: controller.signal,
-      body: JSON.stringify({messages: history, language: languageEl.value})
+      body: JSON.stringify({messages: history, language: REPLY_LANG[S.lang], voice: S.voice})
     });
     if (res.status === 401) throw new Error('Wrong passcode. Send again and enter it once more.');
     if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'The request failed.'); }
@@ -744,20 +848,18 @@ async function sendMessage(textArg) {
         if (!line) continue;
         const msg = JSON.parse(line);
         if (msg.error) throw new Error(msg.error);
-        if (msg.t) {
-          answer += msg.t; bubble.textContent = answer; scrollBottom();
-        }
+        if (msg.t) { answer += msg.t; bubble.textContent = answer; scrollBottom(); }
       }
     }
-    if (speak && answer.trim()) speakAll(answer);
-    if (!answer.trim()) throw new Error('Subha sent an empty reply. Try again.');
+    if (!answer.trim()) throw new Error('Empty reply. Try again.');
     history.push({role: 'assistant', content: answer});
+    if (speak) speakAll(answer);
   } catch (err) {
     if (err.name === 'AbortError') {
       if (answer.trim()) history.push({role: 'assistant', content: answer}); else { history.pop(); bubble.closest('.message').remove(); }
     } else {
       history.pop();
-      bubble.textContent = 'I could not reach Subha: ' + err.message;
+      bubble.textContent = 'I could not reach ' + NAME[S.voice] + ': ' + err.message;
       bubble.classList.add('error');
       setStatus('Connection problem. Check internet and try again.');
     }
@@ -781,10 +883,10 @@ $('clear').addEventListener('click', () => {
   messagesEl.innerHTML = '<div class="welcome" id="welcome"><div class="big">🌷</div><h2>Fresh start!</h2><p>What would you like to talk about?</p></div>';
   inputEl.value = ''; inputEl.focus();
 });
-$('lock').addEventListener('click', () => { clearToken(); askToken(); });
 </script>
 </body>
 </html>'''
+
 
 # --------------------------------------------------------------------------
 # Server
@@ -863,6 +965,7 @@ class SubhaHandler(BaseHTTPRequestHandler):
         if self.path != "/api/chat":
             self.send_error_json(404, "Not found")
             return
+
         try:
             length = int(self.headers.get("Content-Length", "0"))
             if length <= 0 or length > 1_000_000:
@@ -872,6 +975,7 @@ class SubhaHandler(BaseHTTPRequestHandler):
             language = payload.get("language", "auto")
             if language not in LANGUAGE_INSTRUCTIONS:
                 language = "auto"
+            gender = payload.get("voice") if payload.get("voice") in NAMES else "female"
 
             raw = payload.get("messages", [])
             if not isinstance(raw, list) or not raw:
@@ -885,13 +989,13 @@ class SubhaHandler(BaseHTTPRequestHandler):
             if not clean or clean[-1]["role"] != "user":
                 raise ValueError("The latest message must be from you.")
 
-            system_text = PERSONA + "\n\n" + LANGUAGE_INSTRUCTIONS[language]
+            system_text = build_persona(gender) + "\n\n" + LANGUAGE_INSTRUCTIONS[language]
             prev_user = [m["content"] for m in clean[:-1] if m["role"] == "user"]
             context, _explicit = make_kural_context(clean[-1]["content"], prev_user)
             if context:
                 clean[-1]["content"] += "\n\n[private note: " + context + "]"
 
-            messages = [{"role": "system", "content": system_text}] + FEWSHOT + clean
+            messages = [{"role": "system", "content": system_text}] + few_shot(language, gender) + clean
             resp, cloud_used = None, False
 
             if USE_CLOUD:
@@ -987,51 +1091,55 @@ class SubhaHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             if length <= 0 or length > 10_000:
                 raise ValueError("Invalid request size")
-            text = str(json.loads(self.rfile.read(length).decode("utf-8")).get("text", ""))[:600].strip()
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            text = str(payload.get("text", ""))[:600].strip()
             if not text:
                 raise ValueError("No text")
-            audio = synthesize(text)
+            gender = payload.get("voice") if payload.get("voice") in NAMES else "female"
+            speed = payload.get("speed") if payload.get("speed") in SPEEDS else "normal"
+            audio = synthesize(text, gender, speed)
             if not audio:
                 raise RuntimeError("No audio returned")
             self.send_bytes(200, audio, "audio/mpeg")
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
-        except ValueError as exc:
+        except (ValueError, json.JSONDecodeError) as exc:
             self.send_error_json(400, str(exc))
         except Exception as exc:
-            print(f"[Subha] voice error: {type(exc).__name__}: {exc}")
-            self.send_error_json(500, "Voice error")
+            print(f"[Subha] tts error: {exc}")
+            self.send_error_json(500, "Voice error. Try again.")
 
     def log_message(self, fmt, *args):
         print("[Subha]", fmt % args)
 
 
 def warm_up():
-    """Local Ollama only: load the model into memory so the first reply is not slow."""
+    """Local Ollama only: load the model into memory so the first reply is fast."""
     try:
         body = {"model": MODEL, "messages": [{"role": "user", "content": "hi"}],
                 "stream": False, "keep_alive": "60m", "options": {"num_predict": 1}}
         urlopen(Request(OLLAMA_URL, data=json.dumps(body).encode("utf-8"),
-                        headers={"Content-Type": "application/json"}, method="POST"),
-                timeout=300).read()
-        print("[Subha] Model warmed up and ready.")
+                        headers={"Content-Type": "application/json"}, method="POST"), timeout=300).read()
+        print("[Subha] Local model warmed up.")
     except Exception as exc:
         print(f"[Subha] Warm-up skipped: {exc}")
 
 
 if __name__ == "__main__":
+    print("=" * 52)
+    print(f"Subha AI is running ({len(KURALS)} Kurals loaded) on port {PORT}.")
+    print("Voices: " + ("edge-tts girl + boy" if HAVE_EDGE_TTS else "browser voice only (pip install edge-tts)")
+          + (" + Azure" if AZURE_KEY and AZURE_REGION else ""))
+    print(f"Brain: " + (f"cloud ({len(CLOUD_KEYS)} keys) {CLOUD_MODEL}" if USE_CLOUD else "no cloud keys")
+          + (f" + local {MODEL}" if USE_OLLAMA else ""))
+    if not ACCESS_TOKEN:
+        print("WARNING: SUBHA_ACCESS_TOKEN is not set, so every API call will be refused.")
+    if not USE_CLOUD and not USE_OLLAMA:
+        print("WARNING: no SUBHA_API_KEYS and SUBHA_USE_OLLAMA is off, so Subha cannot answer.")
+    print("=" * 52)
     if USE_OLLAMA and not USE_CLOUD:
         threading.Thread(target=warm_up, daemon=True).start()
     server = ThreadingHTTPServer((HOST, PORT), SubhaHandler)
-    print("=" * 48)
-    print(f"Subha AI is running on {HOST}:{PORT} ({len(KURALS)} Kurals loaded).")
-    print("Voice: " + ("female neural voice (edge-tts)" if HAVE_EDGE_TTS else "browser voice only (pip install edge-tts)"))
-    print(f"LLM: {CLOUD_MODEL} with {len(CLOUD_KEYS)} key(s)" if USE_CLOUD else "LLM: NO CLOUD KEYS SET (set SUBHA_API_KEYS)")
-    print("Ollama fallback: " + ("ON" if USE_OLLAMA else "off"))
-    if not ACCESS_TOKEN:
-        print("WARNING: SUBHA_ACCESS_TOKEN is not set - every /api call will be rejected.")
-    print("Keep this window open. Press Ctrl+C to stop.")
-    print("=" * 48)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
