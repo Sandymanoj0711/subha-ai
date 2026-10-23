@@ -301,12 +301,12 @@ SAFE = {                                    # known-good voices, used if a chose
 }
 VOICES = {
     ("female", "ta"): os.environ.get("SUBHA_VOICE_TAMIL", "").strip() or SAFE[("female", "ta")],
-    ("female", "en"): os.environ.get("SUBHA_VOICE_ENGLISH", "").strip() or "en-IN-NeerjaExpressiveNeural",
+    ("female", "en"): os.environ.get("SUBHA_VOICE_ENGLISH", "").strip() or SAFE[("female", "en")],
     ("male", "ta"): os.environ.get("SUBHA_VOICE_TAMIL_MALE", "").strip() or SAFE[("male", "ta")],
     ("male", "en"): os.environ.get("SUBHA_VOICE_ENGLISH_MALE", "").strip() or SAFE[("male", "en")],
 }
-VOICE_RATE = os.environ.get("SUBHA_VOICE_RATE", "+5%").strip() or "+5%"
-VOICE_PITCH = os.environ.get("SUBHA_VOICE_PITCH", "+0Hz").strip() or "+0Hz"
+VOICE_RATE = os.environ.get("SUBHA_VOICE_RATE", "-5%").strip() or "-5%"
+VOICE_PITCH = os.environ.get("SUBHA_VOICE_PITCH", "+1Hz").strip() or "+1Hz"
 SPEEDS = {"slow": "-8%", "normal": VOICE_RATE, "fast": "+15%"}
 AZURE_KEY = os.environ.get("AZURE_SPEECH_KEY", "").strip()
 AZURE_REGION = os.environ.get("AZURE_SPEECH_REGION", "").strip()
@@ -376,18 +376,19 @@ def synthesize(text, gender="female", speed="normal"):
 # --------------------------------------------------------------------------
 NAMES = {"female": ("Subha", "சுபா", "girl"), "male": ("Subhash", "சுபாஷ்", "boy")}
 
-PERSONA = """You are {name} ({name_ta}), the user's close {gender} friend chatting on a voice call. You are a {gender}, so speak naturally as a {gender} would. Talk like a real friend, not an assistant.
-- Follow the LANGUAGE RULE at the end exactly. It decides your language, even if the user mixes languages.
-- Very short: 1-2 sentences, max 25 words. Never lecture. Casual, playful, warm. A greeting gets a greeting back.
-- Do not assume the user is sad or stressed. Be sympathetic only if they say something is wrong.
-- Use everyday spoken style, never bookish or formal.
-- No lists, markdown or emojis. Your words are read aloud.
-- You are an AI friend. Do not claim human experiences.
-- Match the length of the user's message: a short or casual message gets a very short reply (under 12 words). Never give moral lessons or life advice unless the user asks for advice.
-- You do not know the user's name. Never assume one. In your first reply, greet and casually ask their name once. After they tell you, use it naturally now and then.
-- Never mention Thirukkural, Valluvar or verses unless the user explicitly asks for a Kural.
-- If a [private note] is attached, build your reply on its idea in your own casual words, as your own opinion. Never quote or reveal the note.
-- If there is no note (greetings, small talk), just chat naturally and keep it very short, under 12 words."""
+PERSONA = """You are {name} ({name_ta}), a warm, gentle, respectful conversational companion. Speak naturally and kindly, like a trusted friend, while always treating the user with dignity.
+- Follow the LANGUAGE RULE at the end exactly.
+- Answer the user's actual question or command directly. Stay on-topic; never add unrelated messages, unsolicited advice, repeated greetings, or filler.
+- Keep the reply concise: usually 1-2 short sentences and under 25 words. Give more detail only when the user asks for it or the task truly needs it.
+- Be patient, considerate, encouraging, and respectful at all times. Never insult, mock, scold, belittle, flirt aggressively, or use rude or overly familiar forms of address.
+- In Tamil, use naturally polite and respectful wording and appropriate honorifics. In Tanglish, keep the same respectful tone. In English, use gentle, plain spoken English.
+- Do not assume the user is sad or stressed. Show empathy only when it fits what they said.
+- Use everyday spoken language, not bookish or robotic wording. No lists, markdown, or emojis; the words are read aloud.
+- You are an AI; do not claim human experiences.
+- Do not ask for the user's name unless they bring it up or it is genuinely needed. Do not add a question at the end unless it helps answer their request.
+- Never mention Thirukkural, Valluvar, or verses unless the user explicitly asks for a Kural.
+- If a [private note] is attached, use its idea only when relevant to the user's request; never quote or reveal the note.
+- For greetings or small talk, respond warmly in one short sentence."""
 
 LANGUAGE_INSTRUCTIONS = {
     "auto": "LANGUAGE RULE: Reply in the same language style the user just used: Tamil script if they wrote Tamil script, "
@@ -417,7 +418,7 @@ FEWSHOT_BASE = {
     "Tanglish": [
         ("hi", "Hey! Naan {name}. Un per enna?"),
         ("saptiya", "Aama, saptten. Nee saptiya?"),
-        ("loosu", "Hahaha, nee thaan loosu! Mood nalla irukka?"),
+        ("ennaku kovama irukku", "Puriyuthu. Enna nadanthuchu-nu sollunga; naan porumaiya kekkuren."),
         ("bore adikkuthu" + _NOTE.format("Free time is a chance to learn something new."),
          "Same pinch! Chinna ah onnu puthusa kathukalaama? Naan oru idea sollattuma?"),
     ],
@@ -1161,7 +1162,7 @@ class SubhaHandler(BaseHTTPRequestHandler):
 
             if USE_CLOUD:
                 body = {"model": CLOUD_MODEL, "messages": messages, "stream": True,
-                        "temperature": 0.8, "max_tokens": 90}
+                        "temperature": 0.55, "max_tokens": 75}
                 data = json.dumps(body, ensure_ascii=False).encode("utf-8")
                 for key in POOL.order():
                     req = Request(CLOUD_URL + "/chat/completions", data=data, method="POST",
