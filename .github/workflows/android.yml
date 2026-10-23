@@ -25,6 +25,11 @@ jobs:
           npx cap add android
           node scripts/patch-android.js
           npx cap sync android
+      - name: App icons
+        working-directory: mobile
+        run: |
+          pip install pillow
+          python3 scripts/apply_icons.py android
       - name: Build debug APK
         working-directory: mobile/android
         run: |

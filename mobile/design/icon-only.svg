@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9ad5"/><stop offset=".5" stop-color="#9a6bff"/><stop offset="1" stop-color="#3b3fd9"/></linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7b5cff"/><stop offset=".55" stop-color="#4a33b8"/><stop offset="1" stop-color="#2b1f7a"/></linearGradient>
+    <linearGradient id="hairF" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8d6dff"/><stop offset="1" stop-color="#4a33b8"/></linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0e6"/><stop offset="1" stop-color="#ffd3c2"/></linearGradient>
+    <radialGradient id="iris" cx=".5" cy=".3" r=".8"><stop offset="0" stop-color="#a8f0ff"/><stop offset=".55" stop-color="#6aa8ff"/><stop offset="1" stop-color="#6a3dff"/></radialGradient>
+    <radialGradient id="glow" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <!-- backdrop -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="470" r="400" fill="url(#glow)"/>
+  <polygon points="170.0,154.0 179.1,190.9 216.0,200.0 179.1,209.1 170.0,246.0 160.9,209.1 124.0,200.0 160.9,190.9" fill="#fff" opacity="0.9"/><polygon points="850.0,136.0 856.7,163.3 884.0,170.0 856.7,176.7 850.0,204.0 843.3,176.7 816.0,170.0 843.3,163.3" fill="#ffe9a8" opacity="0.95"/><polygon points="900.0,396.0 904.8,415.2 924.0,420.0 904.8,424.8 900.0,444.0 895.2,424.8 876.0,420.0 895.2,415.2" fill="#fff" opacity="0.8"/><polygon points="120.0,494.0 125.1,514.9 146.0,520.0 125.1,525.1 120.0,546.0 114.9,525.1 94.0,520.0 114.9,514.9" fill="#ffe9a8" opacity="0.8"/><polygon points="800.0,680.0 804.0,696.0 820.0,700.0 804.0,704.0 800.0,720.0 796.0,704.0 780.0,700.0 796.0,696.0" fill="#fff" opacity="0.7"/><polygon points="210.0,738.0 214.4,755.6 232.0,760.0 214.4,764.4 210.0,782.0 205.6,764.4 188.0,760.0 205.6,755.6" fill="#fff" opacity="0.7"/>
+  <!-- back hair -->
+  <path d="M512 130 C 280 130 200 320 212 530 C 222 700 196 860 236 1024 L 788 1024 C 828 860 802 700 812 530 C 824 320 744 130 512 130 Z" fill="url(#hair)"/>
+  <!-- body -->
+  <path d="M250 1024 C 262 880 372 806 512 806 C 652 806 762 880 774 1024 Z" fill="#fff6fb"/>
+  <path d="M400 820 L512 930 L624 820 C 590 806 540 800 512 800 C 484 800 434 806 400 820 Z" fill="#ffb3d1"/>
+  <path d="M512 905 C 470 880 440 900 450 935 C 470 960 500 940 512 925 C 524 940 554 960 574 935 C 584 900 554 880 512 905 Z" fill="#ff6fa8"/>
+  <circle cx="512" cy="922" r="16" fill="#ff3f8e"/>
+  <!-- neck -->
+  <path d="M468 690 L556 690 L562 812 C 540 846 484 846 462 812 Z" fill="#ffc9b6"/>
+  <!-- headband -->
+  <path d="M322 520 C 300 220 724 220 702 520" fill="none" stroke="#fff6fb" stroke-width="26" stroke-linecap="round"/>
+  <path d="M322 520 C 300 220 724 220 702 520" fill="none" stroke="#ff9ac8" stroke-width="8" stroke-linecap="round" opacity=".8"/>
+  <!-- face -->
+  <path d="M512 318 C 396 318 342 414 342 540 C 342 650 410 742 512 752 C 614 742 682 650 682 540 C 682 414 628 318 512 318 Z" fill="url(#skin)"/>
+  <!-- side locks -->
+  <path d="M348 470 C 308 570 326 720 286 880 C 372 846 392 720 380 560 Z" fill="url(#hairF)"/>
+  <path d="M676 470 C 716 570 698 720 738 880 C 652 846 632 720 644 560 Z" fill="url(#hairF)"/>
+  <!-- headphone cups -->
+  <ellipse cx="330" cy="548" rx="40" ry="74" fill="#fff6fb"/><ellipse cx="326" cy="548" rx="26" ry="56" fill="#ff7fb8"/>
+  <ellipse cx="694" cy="548" rx="40" ry="74" fill="#fff6fb"/><ellipse cx="698" cy="548" rx="26" ry="56" fill="#ff7fb8"/>
+  <!-- blush -->
+  <ellipse cx="410" cy="640" rx="40" ry="20" fill="#ff7f9f" opacity=".42"/><ellipse cx="614" cy="640" rx="40" ry="20" fill="#ff7f9f" opacity=".42"/>
+  <!-- eyes -->
+  
+  <g>
+    <ellipse cx="440" cy="552" rx="54" ry="64" fill="#fff"/>
+    <ellipse cx="440" cy="556" rx="43" ry="57" fill="url(#iris)"/>
+    <ellipse cx="440" cy="560" rx="21" ry="31" fill="#241a52"/>
+    <ellipse cx="440" cy="582" rx="30" ry="14" fill="#9fe8ff" opacity=".55"/>
+    <circle cx="426" cy="532" r="16" fill="#fff"/>
+    <circle cx="456" cy="574" r="7" fill="#fff"/>
+    <path d="M382 546 C 394 482, 448 470, 482 510" fill="none" stroke="#2a1b4d" stroke-width="13" stroke-linecap="round"/>
+    <path d="M386 526 l -22 -14" fill="none" stroke="#2a1b4d" stroke-width="10" stroke-linecap="round"/>
+    <path d="M398 610 C 425 624, 455 624, 482 610" fill="none" stroke="#e8a0a8" stroke-width="4" stroke-linecap="round" opacity=".6"/>
+  </g>
+  <g>
+    <ellipse cx="584" cy="552" rx="54" ry="64" fill="#fff"/>
+    <ellipse cx="584" cy="556" rx="43" ry="57" fill="url(#iris)"/>
+    <ellipse cx="584" cy="560" rx="21" ry="31" fill="#241a52"/>
+    <ellipse cx="584" cy="582" rx="30" ry="14" fill="#9fe8ff" opacity=".55"/>
+    <circle cx="598" cy="532" r="16" fill="#fff"/>
+    <circle cx="568" cy="574" r="7" fill="#fff"/>
+    <path d="M642 546 C 630 482, 576 470, 542 510" fill="none" stroke="#2a1b4d" stroke-width="13" stroke-linecap="round"/>
+    <path d="M638 526 l 22 -14" fill="none" stroke="#2a1b4d" stroke-width="10" stroke-linecap="round"/>
+    <path d="M542 610 C 569 624, 599 624, 626 610" fill="none" stroke="#e8a0a8" stroke-width="4" stroke-linecap="round" opacity=".6"/>
+  </g>
+  <!-- brows -->
+  <path d="M388 470 C 415 452 450 450 478 462" fill="none" stroke="#3a2a8a" stroke-width="9" stroke-linecap="round"/>
+  <path d="M636 470 C 609 452 574 450 546 462" fill="none" stroke="#3a2a8a" stroke-width="9" stroke-linecap="round"/>
+  <!-- nose + mouth -->
+  <path d="M508 626 q 4 8 10 2" fill="none" stroke="#e9a592" stroke-width="5" stroke-linecap="round"/>
+  <path d="M478 668 C 492 704 532 704 546 668 C 530 680 494 680 478 668 Z" fill="#e0556f"/>
+  <path d="M488 674 C 500 690 524 690 536 674" fill="none" stroke="#ff9db1" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+  <!-- bangs -->
+  <path d="M512 282 C 384 282 322 386 336 536 C 372 480 396 440 432 408 C 440 440 446 462 468 482 C 506 430 516 360 512 282 Z" fill="url(#hairF)"/>
+  <path d="M512 282 C 640 282 702 386 688 536 C 652 480 628 440 592 408 C 584 440 578 462 556 482 C 518 430 508 360 512 282 Z" fill="url(#hairF)"/>
+  <path d="M452 322 C 408 340 378 380 366 430" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".28"/>
+  <path d="M572 322 C 616 340 646 380 658 430" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".28"/>
+  <!-- star hair clip -->
+  <polygon points="628.0,332.0 635.9,364.1 668.0,372.0 635.9,379.9 628.0,412.0 620.1,379.9 588.0,372.0 620.1,364.1" fill="#ffe27a" opacity="1"/>
+  <circle cx="628" cy="372" r="9" fill="#fff6c7"/>
+</svg>

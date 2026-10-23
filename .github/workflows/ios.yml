@@ -23,6 +23,11 @@ jobs:
           npx cap add ios
           node scripts/patch-ios.js
           npx cap sync ios
+      - name: App icons
+        working-directory: mobile
+        run: |
+          pip3 install pillow --break-system-packages || pip3 install pillow
+          python3 scripts/apply_icons.py ios
       - name: Archive (no signing)
         working-directory: mobile/ios/App
         run: |
