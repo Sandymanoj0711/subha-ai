@@ -46,6 +46,30 @@
     return;
   }
 
+  // iOS: the Speech framework only supports some languages. If the chosen one is missing,
+  // the plugin silently does nothing, so ask the phone what it supports and fall back.
+  var IOS = false;
+  try { IOS = !!(C.getPlatform && C.getPlatform() === 'ios'); } catch (e) {}
+  var supported = null;
+  function loadSupported() {
+    if (!IOS || supported) return Promise.resolve(supported);
+    return Promise.resolve().then(function () { return Plugin.getSupportedLanguages(); }).then(function (r) {
+      supported = ((r && r.languages) || []).map(function (l) { return String(l).replace(/_/g, '-'); });
+      return supported;
+    }).catch(function () { supported = []; return supported; });
+  }
+  function pickLang(want) {
+    if (!IOS || !supported || !supported.length) return want;
+    var low = supported.map(function (l) { return l.toLowerCase(); });
+    var w = want.toLowerCase(), i = low.indexOf(w);
+    if (i >= 0) return supported[i];
+    var base = w.split('-')[0];
+    for (i = 0; i < low.length; i++) if (low[i].split('-')[0] === base) return supported[i];
+    var fb = ['en-in', 'en-us', 'en-gb'];
+    for (var k = 0; k < fb.length; k++) { i = low.indexOf(fb[k]); if (i >= 0) return supported[i]; }
+    return want;
+  }
+
   var SILENCE_MS = 1800;   // stop after this much quiet once the user has spoken
   var NO_SPEECH_MS = 8000; // give up if nothing is heard
 
@@ -94,14 +118,14 @@
 
     Plugin.requestPermissions().then(function (p) {
       if (self._ended) return;
-      if (p.speechRecognition !== 'granted') { window.__toast('Mic permission: ' + p.speechRecognition); fail('not-allowed'); return; }
-      return Promise.resolve(Plugin.addListener('partialResults', function (d) {
+      if (p.speechRecognition !== 'granted') { window.__toast('Mic/Speech permission is ' + p.speechRecognition + '. Open iPhone Settings > Subha AI and allow Microphone and Speech Recognition.'); fail('not-allowed'); return; }
+      return loadSupported().then(function () { return Promise.resolve(Plugin.addListener('partialResults', function (d) {
         var t = (d && d.matches && d.matches[0]) || '';
         if (!t) return;
         clearTimeout(self._noSpeech);
         if (!self._heard) { self._heard = true; if (self.onspeechstart) self.onspeechstart(); }
         self._last = t; emit(t, false); armSilence();
-      })).then(function (h) {
+      })); }).then(function (h) {
         self._handles.push(h);
         return Promise.resolve(Plugin.addListener('listeningState', function (d) {
           if (d && d.status === 'stopped') setTimeout(finish, 200);
@@ -112,7 +136,9 @@
           if (!self._heard) { window.__toast('Mic is on but heard nothing'); self._stopNative(); fail('no-speech'); }
         }, NO_SPEECH_MS);
         if (self.onstart) self.onstart();
-        return Plugin.start({ language: self.lang, maxResults: 1, partialResults: true, popup: false });
+        var useLang = pickLang(self.lang);
+        if (useLang !== self.lang) window.__toast('This iPhone cannot listen in ' + self.lang + '. Using ' + useLang + ' instead.');
+        return Plugin.start({ language: useLang, maxResults: 1, partialResults: true, popup: false });
       });
     }).catch(function (e) {
       window.__toast('Mic error: ' + String((e && e.message) || e));

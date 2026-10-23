@@ -28,10 +28,10 @@ select{color:var(--text);background:var(--panel2);border:1px solid var(--border)
 .welcome h2{margin:10px 0 8px;font-size:25px}
 .welcome p{color:var(--muted);line-height:1.6}
 .message{display:flex;gap:10px;max-width:90%;align-items:flex-start}
-.message.user{align-self:flex-end;flex-direction:row-reverse}
+.message.user{align-self:flex-end;flex-direction:row-reverse;width:fit-content;min-width:0}
 .avatar{flex:0 0 32px;height:32px;border-radius:11px;display:grid;place-items:center;font-size:14px;background:var(--panel2)}
 .message.user .avatar{background:#5547bd}
-.bubble{padding:11px 15px;border-radius:16px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--panel)}
+.bubble{padding:11px 15px;border-radius:16px;line-height:1.65;white-space:pre-wrap;overflow-wrap:break-word;min-width:0;background:var(--panel)}
 .message.user .bubble{background:#39316c}
 .bubble.error{border:1px solid #a54c59}
 .composer-wrap{padding:10px 14px 14px;border-top:1px solid var(--border)}
