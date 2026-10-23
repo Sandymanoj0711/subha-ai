@@ -38,7 +38,7 @@
     }
     if (!TTS) { window.__toast('Phone voice plugin missing'); end(); return; }
     var lang = /[\u0B80-\u0BFF]/.test(text) ? 'ta-IN' : 'en-IN';
-    Promise.resolve(TTS.speak({ text: text, lang: lang, rate: 1.0, pitch: 1.0, volume: 1.0 }))
+    Promise.resolve(TTS.speak({ text: text, lang: lang, rate: 0.92, pitch: 1.08, volume: 1.0 }))
       .then(end)
       .catch(function (e) { window.__toast('Phone voice error: ' + String((e && e.message) || e)); end(); });
   };
@@ -81,7 +81,7 @@
     return want;
   }
 
-  var SILENCE_MS = 1800;   // stop after this much quiet once the user has spoken
+  var SILENCE_MS = 2200;   // wait for a natural pause so the whole command can be captured
   var NO_SPEECH_MS = 8000; // give up if nothing is heard
 
   function NativeRec() {
