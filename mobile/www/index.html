@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10131b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Subha AI">
+<title>Subha AI</title>
+<style>
+:root{color-scheme:dark;--bg:#10131b;--panel:#181d29;--panel2:#202738;--text:#f3f5fb;--muted:#a3adc1;--accent:#8b7cff;--border:#30394d;--live:#ff6b8a}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:"Segoe UI","Nirmala UI",Arial,sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:920px;height:100vh;height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#a89cff,#6653db);display:grid;place-items:center;font-size:23px;font-weight:700;color:#fff}
+.brand{flex:1;min-width:140px}
+.brand h1{margin:0;font-size:19px}
+.brand p{margin:3px 0 0;color:var(--muted);font-size:12px}
+.selects{display:flex;gap:8px}
+label.sel{display:flex;flex-direction:column;font-size:10px;color:var(--muted);gap:3px}
+select,button,textarea{font:inherit}
+select{color:var(--text);background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:7px;max-width:130px}
+#messages{flex:1;overflow-y:auto;padding:22px 16px;display:flex;flex-direction:column;gap:16px}
+.welcome{margin:auto;max-width:440px;text-align:center;padding:24px 10px}
+.welcome .big{font-size:46px}
+.welcome h2{margin:10px 0 8px;font-size:25px}
+.welcome p{color:var(--muted);line-height:1.6}
+.message{display:flex;gap:10px;max-width:90%;align-items:flex-start}
+.message.user{align-self:flex-end;flex-direction:row-reverse}
+.avatar{flex:0 0 32px;height:32px;border-radius:11px;display:grid;place-items:center;font-size:14px;background:var(--panel2)}
+.message.user .avatar{background:#5547bd}
+.bubble{padding:11px 15px;border-radius:16px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--panel)}
+.message.user .bubble{background:#39316c}
+.bubble.error{border:1px solid #a54c59}
+.composer-wrap{padding:10px 14px 14px;border-top:1px solid var(--border)}
+.composer{display:flex;gap:10px;align-items:flex-end;padding:9px;border:1px solid var(--border);border-radius:18px;background:var(--panel)}
+textarea{flex:1;resize:none;max-height:140px;min-height:42px;border:0;outline:0;color:var(--text);background:transparent;padding:10px 5px;line-height:1.5;font-size:16px}
+#mic{flex:0 0 46px;height:46px;border-radius:50%;border:0;background:var(--panel2);color:var(--text);font-size:20px;cursor:pointer}
+#mic.on{background:#4b3fb5}
+#mic.live{background:var(--live);animation:pulse 1.3s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,107,138,.55)}100%{box-shadow:0 0 0 16px rgba(255,107,138,0)}}
+@media (prefers-reduced-motion:reduce){#mic.live{animation:none}}
+#send{border:0;border-radius:12px;padding:12px 16px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600}
+#send:disabled{opacity:.5}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tools{display:flex;justify-content:space-between;align-items:center;margin-top:9px;gap:10px;flex-wrap:wrap}
+.smallbtn{border:1px solid var(--border);border-radius:9px;color:var(--muted);background:var(--panel);padding:7px 10px;cursor:pointer}
+.speak{color:var(--muted);font-size:12px;display:flex;gap:6px;align-items:center}
+.note{color:var(--muted);font-size:11px}
+@media (max-width:540px){.note{display:none}select{max-width:108px;font-size:12px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">சு</div>
+    <div class="brand"><h1>Subha AI</h1><p id="status">Tap the mic and just talk</p></div>
+    <div class="selects">
+      <label class="sel">You speak
+        <select id="micLang">
+          <option value="tamil">தமிழ் / Tanglish</option>
+          <option value="english">English</option>
+        </select>
+      </label>
+      <label class="sel">Subha replies
+        <select id="language">
+          <option value="auto">Match me</option>
+          <option value="Tanglish">Tanglish</option>
+          <option value="Tamil">தமிழ்</option>
+          <option value="English">English</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <main id="messages" aria-live="polite">
+    <div class="welcome" id="welcome">
+      <div class="big">🌷</div>
+      <h2>Hi Manoj, I'm Subha!</h2>
+      <p>Tap the mic and talk to me like a friend - Tamil, English or Tanglish. You can type too.</p>
+    </div>
+  </main>
+
+  <div class="composer-wrap">
+    <form id="chatForm" class="composer">
+      <button id="mic" type="button" aria-label="Start or stop voice chat" title="Voice chat">🎙</button>
+      <textarea id="input" rows="1" placeholder="Message Subha..." aria-label="Message Subha"></textarea>
+      <button id="send" type="submit">Send</button>
+    </form>
+    <div class="tools">
+      <button id="clear" class="smallbtn" type="button">New chat</button>
+      <label class="speak"><input type="checkbox" id="speakOn" checked> Speak replies</label>
+      <button id="lock" class="smallbtn" type="button">Change passcode</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="native.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const messagesEl = $('messages'), inputEl = $('input'), sendBtn = $('send'), micBtn = $('mic');
+const statusEl = $('status'), languageEl = $('language'), micLangEl = $('micLang'), speakEl = $('speakOn');
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const MIC_LANG = {tamil: 'ta-IN', english: 'en-IN'};
+
+/* ---------- server URL + passcode ----------
+   In the browser the page and the API share one origin, so BASE is ''.
+   In the Capacitor app, set window.SUBHA_BASE = 'https://your-app.onrender.com' before this script. */
+const BASE = (window.SUBHA_BASE || '').replace(/\/$/, '');
+let TOKEN = '';
+try { TOKEN = localStorage.getItem('subha_token') || ''; } catch (e) {}
+
+function askToken() {
+  const t = (window.prompt('Enter Subha passcode:') || '').trim();
+  if (t) { TOKEN = t; try { localStorage.setItem('subha_token', t); } catch (e) {} }
+  return t;
+}
+function clearToken() { TOKEN = ''; try { localStorage.removeItem('subha_token'); } catch (e) {} }
+
+async function apiFetch(path, opts = {}) {
+  if (!TOKEN && !askToken()) throw new Error('Passcode needed.');
+  opts.headers = Object.assign({}, opts.headers || {}, {'X-Subha-Token': TOKEN});
+  const res = await fetch(BASE + path, opts);
+  if (res.status === 401) clearToken();
+  return res;
+}
+
+let history = [], busy = false, controller = null;
+let voiceMode = false, listening = false, rec = null;
+let ttsQueue = [], speaking = false, pending = '', firstChunk = true, ttsGen = 0, curAudio = null;
+
+const scrollBottom = () => { messagesEl.scrollTop = messagesEl.scrollHeight; };
+const setStatus = t => { statusEl.textContent = t; };
+
+function addMessage(role, text, isError = false) {
+  const w = $('welcome'); if (w) w.remove();
+  const row = document.createElement('div');
+  row.className = 'message ' + (role === 'user' ? 'user' : 'assistant');
+  const av = document.createElement('div');
+  av.className = 'avatar'; av.textContent = role === 'user' ? 'M' : 'சு';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble' + (isError ? ' error' : '');
+  bubble.textContent = text;
+  row.append(av, bubble);
+  messagesEl.appendChild(row);
+  scrollBottom();
+  return bubble;
+}
+
+/* ---------- speech output ---------- */
+let voices = [];
+const loadVoices = () => { voices = speechSynthesis.getVoices(); };
+if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+
+function pickVoice(text) {
+  const tamil = /[\u0B80-\u0BFF]/.test(text);
+  const want = tamil ? 'ta' : 'en';
+  let list = voices.filter(v => v.lang.toLowerCase().startsWith(want));
+  if (!tamil) {
+    const indian = list.filter(v => v.lang.toLowerCase() === 'en-in');
+    if (indian.length) list = indian;
+  }
+  return list.find(v => /pallavi|neerja|female|heera|veena|natural/i.test(v.name)) || list[0] || null;
+}
+
+function cleanForSpeech(s) {
+  return s.replace(/[*_`#>]/g, '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
+}
+
+function browserSpeak(text, done) {
+  let finished = false;
+  const end = () => { if (!finished) { finished = true; done(); } };
+  if (!('speechSynthesis' in window)) { end(); return; }
+  const u = new SpeechSynthesisUtterance(text);
+  const v = pickVoice(text);
+  if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = /[\u0B80-\u0BFF]/.test(text) ? 'ta-IN' : 'en-IN'; }
+  u.rate = 1.05; u.pitch = 1.1;
+  u.onend = u.onerror = end;
+  speechSynthesis.speak(u);
+}
+
+// Each reply is fetched as ONE audio clip (only very long replies are split).
+function fetchAudio(text) {
+  return apiFetch('/api/tts', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                               body: JSON.stringify({text})})
+    .then(r => r.ok ? r.blob() : null).catch(() => null);
+}
+
+function enqueueSpeech(raw) {
+  const s = cleanForSpeech(raw);
+  if (!/[\p{L}\p{N}]/u.test(s)) return;
+  ttsQueue.push({text: s, audio: fetchAudio(s)});
+  if (!speaking) nextSpeech();
+}
+
+async function nextSpeech() {
+  const item = ttsQueue.shift();
+  if (!item) { speaking = false; maybeResume(); return; }
+  speaking = true;
+  setStatus('Speaking...');
+  const gen = ttsGen;
+  const advance = () => { if (gen === ttsGen) nextSpeech(); };
+  const blob = await item.audio;
+  if (gen !== ttsGen) return;                       // interrupted while loading
+  if (blob && blob.size > 0) {
+    const url = URL.createObjectURL(blob);
+    const a = new Audio(url);
+    curAudio = a;
+    let finished = false;
+    const end = () => { if (finished) return; finished = true; URL.revokeObjectURL(url); advance(); };
+    a.onended = end; a.onerror = end;
+    try { await a.play(); } catch (e) { finished = true; browserSpeak(item.text, advance); }
+  } else {
+    browserSpeak(item.text, advance);               // fallback voice
+  }
+}
+
+// One audio for the whole reply = no gaps. Only very long replies are split.
+function speakAll(text) {
+  let rest = text.trim();
+  while (rest.length > 260) {
+    let cut = Math.max(rest.lastIndexOf('. ', 260), rest.lastIndexOf('? ', 260), rest.lastIndexOf('! ', 260));
+    if (cut < 80) cut = rest.lastIndexOf(' ', 260);
+    if (cut < 1) cut = 260;
+    enqueueSpeech(rest.slice(0, cut + 1));
+    rest = rest.slice(cut + 1).trim();
+  }
+  if (rest) enqueueSpeech(rest);
+}
+
+function stopSpeech() {
+  ttsGen++; ttsQueue = []; pending = '';
+  if (curAudio) { curAudio.pause(); curAudio = null; }
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+}
+
+/* ---------- speech input ---------- */
+function startListening() {
+  if (!SR) { setStatus('Voice input needs Edge or Chrome'); voiceMode = false; micBtn.classList.remove('on'); return; }
+  if (listening || busy || speaking) return;
+  listening = true;
+  let finalText = '';
+  rec = new SR();
+  rec.lang = MIC_LANG[micLangEl.value];
+  rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+  rec.onstart = () => { micBtn.classList.add('live'); setStatus('Listening...'); };
+  rec.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript;
+    }
+    inputEl.value = finalText + interim;
+  };
+  let fatal = false, heard = false;
+  rec.onspeechstart = () => { heard = true; setStatus('Hearing you...'); };
+  rec.onerror = e => {
+    const msg = {
+      'no-speech': 'I did not hear anything. Speak when the mic turns pink.',
+      'audio-capture': 'No microphone found. Check your mic settings.',
+      'network': 'Speech service not reachable. Check internet, or try Chrome.',
+      'not-allowed': 'Microphone is blocked. Allow it in the browser/app settings.',
+      'service-not-allowed': 'Speech recognition is blocked in this browser. Try Chrome.',
+      'language-not-supported': 'This language is not supported for voice input. Change "You speak".'
+    }[e.error];
+    if (e.error !== 'aborted') setStatus(msg || ('Mic error: ' + e.error));
+    if (['audio-capture', 'network', 'not-allowed', 'service-not-allowed', 'language-not-supported'].includes(e.error)) {
+      fatal = true; voiceMode = false; micBtn.classList.remove('on');
+    }
+  };
+  rec.onend = () => {
+    listening = false; micBtn.classList.remove('live');
+    const t = finalText.trim();
+    if (t) { inputEl.value = ''; sendMessage(t); }
+    else if (voiceMode && !fatal) {
+      if (heard) setStatus('I heard a sound but could not understand. Speak a little longer, or switch "You speak".');
+      setTimeout(startListening, 700);
+    }
+    else if (!fatal) setStatus('Tap the mic and just talk');
+  };
+  try { rec.start(); } catch (e) { listening = false; }
+}
+
+function maybeResume() {
+  if (voiceMode && !busy && !speaking && ttsQueue.length === 0) startListening();
+  else if (!voiceMode && !busy && !speaking) setStatus('Ready');
+}
+
+micBtn.addEventListener('click', () => {
+  if (!voiceMode) {
+    voiceMode = true; micBtn.classList.add('on');
+    stopSpeech(); startListening();
+  } else if (busy || speaking) {          // tap to interrupt Subha and talk
+    if (controller) controller.abort();
+    stopSpeech(); speaking = false;
+    if (!busy) startListening();
+  } else {                                // turn voice chat off
+    voiceMode = false; micBtn.classList.remove('on', 'live');
+    if (rec) try { rec.abort(); } catch (e) {}
+    setStatus('Tap the mic and just talk');
+  }
+});
+
+/* ---------- chat ---------- */
+async function sendMessage(textArg) {
+  const text = (textArg ?? inputEl.value).trim();
+  if (!text || busy) return;
+  stopSpeech(); speaking = false;
+  if (listening && rec) try { rec.abort(); } catch (e) {}
+
+  addMessage('user', text);
+  inputEl.value = ''; inputEl.style.height = '42px';
+  history.push({role: 'user', content: text});
+
+  busy = true; sendBtn.disabled = true; setStatus('Thinking...');
+  const bubble = addMessage('assistant', '...');
+  controller = new AbortController();
+  const speak = speakEl.checked || voiceMode;
+  let answer = ''; pending = ''; firstChunk = true;
+
+  try {
+    const res = await apiFetch('/api/chat', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      signal: controller.signal,
+      body: JSON.stringify({messages: history, language: languageEl.value})
+    });
+    if (res.status === 401) throw new Error('Wrong passcode. Send again and enter it once more.');
+    if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'The request failed.'); }
+
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line) continue;
+        const msg = JSON.parse(line);
+        if (msg.error) throw new Error(msg.error);
+        if (msg.t) {
+          answer += msg.t; bubble.textContent = answer; scrollBottom();
+        }
+      }
+    }
+    if (speak && answer.trim()) speakAll(answer);
+    if (!answer.trim()) throw new Error('Subha sent an empty reply. Try again.');
+    history.push({role: 'assistant', content: answer});
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      if (answer.trim()) history.push({role: 'assistant', content: answer}); else { history.pop(); bubble.closest('.message').remove(); }
+    } else {
+      history.pop();
+      bubble.textContent = 'I could not reach Subha: ' + err.message;
+      bubble.classList.add('error');
+      setStatus('Connection problem. Check internet and try again.');
+    }
+  } finally {
+    busy = false; controller = null; sendBtn.disabled = false;
+    if (!speaking && ttsQueue.length === 0) maybeResume();
+  }
+}
+
+$('chatForm').addEventListener('submit', e => { e.preventDefault(); sendMessage(); });
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = '42px';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
+});
+$('clear').addEventListener('click', () => {
+  if (controller) controller.abort();
+  stopSpeech(); speaking = false; history = [];
+  messagesEl.innerHTML = '<div class="welcome" id="welcome"><div class="big">🌷</div><h2>Fresh start!</h2><p>What would you like to talk about?</p></div>';
+  inputEl.value = ''; inputEl.focus();
+});
+$('lock').addEventListener('click', () => { clearToken(); askToken(); });
+</script>
+</body>
+</html>

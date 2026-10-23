@@ -1,0 +1,6 @@
+{
+  "appId": "com.manoj.subhaai",
+  "appName": "Subha AI",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}

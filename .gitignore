@@ -7,3 +7,7 @@ node_modules/
 start.tx
 *.local.ps1
 secrets*
+mobile/node_modules/
+mobile/android/
+mobile/ios/
+mobile/www/config.js
